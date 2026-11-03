@@ -14,18 +14,6 @@ Yamaha only provides download packages for a few select models on their website 
 
 ## Step 1: Boot into Hardware Update Mode (`U`)
 
-The amplifier contains a built-in secondary bootloader (DTAb) that can dump or flash firmware over USB MIDI.
-
-> [!IMPORTANT]
-> **Button Note:** On the Yamaha THR chassis, `TAP: TIME` and `TUNER` are the **exact same physical push-button** (tap for delay tempo, hold for tuner). There is only one button!
-
-```
-           +-----------------------------------------+
-           |          [TAP: TIME / HOLD: TUNER]      |
-           |                     (O)                 |
-           +-----------------------------------------+
-```
-
 ### The Official Update Mode Sequence:
 1. Turn the amplifier power switch **OFF**.
 2. **Press and hold the `TAP: TIME / HOLD: TUNER` button.**
