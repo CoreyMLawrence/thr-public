@@ -50,8 +50,8 @@ xychart-beta
     title "Frequency Response: Stock THR5 Clean vs. THR5A EG Clean Tone Curve"
     x-axis [40Hz, 80Hz, 100Hz, 200Hz, 500Hz, 1kHz, 2kHz, 5kHz, 10kHz, 15kHz]
     y-axis "Amplitude (dB)" -20 --> 15
-    series "Stock THR5 Clean" [-10, 8, 12, 4, -2, 0, 3, 6, 2, -5]
-    series "Hybrid EG Clean" [-6, 0, 1, 0, 0, 1, 2, 4, 3, 0]
+    line [-10, 8, 12, 4, -2, 0, 3, 6, 2, -5]
+    line [-6, 0, 1, 0, 0, 1, 2, 4, 3, 0]
 ```
 
 ### The Injection Hook (`0x0209EA40`)
@@ -72,3 +72,4 @@ The THR5A acoustic engine provides 4 specialized microphone simulation profiles 
 | **`7`** | **Dynamic** | Models a high-output dynamic microphone (e.g. Shure SM57). Mid-forward punch, tight low end, and rapid transient decay. | Strumming rhythm acoustic, bluegrass flatpicking, and cutting through dense mixes. |
 | **`8`** | **Tube** | Models a vintage tube condenser microphone (e.g. Telefunken ELA M 251). Rich second-order harmonic saturation, softened top end, and smooth compression. | Vocal accompaniment, blues, and warming up brittle piezo pickups. |
 | **`9`** | **Nylon** | Specialized voicing tailored for nylon classical and flamenco guitars. Accentuates fingerboard nuances while removing harsh pickup clatter. | Classical, bossa nova, and flamenco playing. |
+|
