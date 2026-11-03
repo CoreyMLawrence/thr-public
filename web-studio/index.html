@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yamaha THR Amp Unlocker & Studio</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23f3a93c'/><text y='65' x='50' font-size='42' font-weight='900' text-anchor='middle' fill='%23111'>THR</text></svg>">
+</head>
+<body>
+
+  <!-- Top Header / Connection Bar -->
+  <header class="header-bar">
+    <div class="brand-section">
+      <div class="logo-badge">THR UNLOCKER</div>
+      <div>
+        <div class="brand-title">Yamaha THR Web Studio <span style="background:#e67e22; color:#fff; font-size:11px; font-weight:bold; padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:middle;">BETA / PROOF-OF-CONCEPT</span></div>
+        <div class="brand-sub">Experimental USB Control &amp; Hidden Features Unlocked</div>
+      </div>
+    </div>
+
+    <div class="connection-panel">
+      <!-- Live Tone / Patch Indicator -->
+      <div class="live-patch-badge" id="live-patch-badge" title="Active tone loaded on amp">
+        <span class="live-patch-dot"></span>
+        <span class="live-patch-label">TONE:</span>
+        <span class="live-patch-name" id="live-patch-name">Velvet Clean</span>
+      </div>
+
+      <div class="connection-pill" id="conn-pill">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="conn-text">Checking USB MIDI...</span>
+      </div>
+
+      <button class="connect-btn" id="btn-connect">Connect Amp</button>
+    </div>
+  </header>
+
+  <!-- Beta Proof-of-Concept Disclaimer Banner -->
+  <div style="background: rgba(230, 126, 34, 0.12); border: 1px solid rgba(230, 126, 34, 0.35); color: #f39c12; font-size: 12px; padding: 7px 16px; margin: 8px 20px 0 20px; border-radius: 6px; text-align: center; line-height: 1.4;">
+    <strong>Notice:</strong> This web application is an <em>unfinished experimental beta</em> built to demonstrate reverse-engineered SysEx control and hidden model loading. It is a functional working proof-of-concept rather than a polished commercial app.
+  </div>
+
+  <main class="main-content">
+
+    <!-- Stage Rigs One-Touch Strip -->
+    <div class="stage-presets-bar">
+      <span class="stage-bar-title">STAGE RIGS:</span>
+      <div class="stage-tiles-row" id="stage-tiles-row">
+        <!-- Rendered by app.js -->
+      </div>
+    </div>
+
+    <!-- Preset & Tone Bar -->
+    <div class="preset-bar">
+      <div class="preset-selector">
+        <span class="preset-label">Amp Tone:</span>
+        <select class="preset-dropdown" id="preset-dropdown">
+          <option value="" disabled selected>Select an Amp Tone...</option>
+        </select>
+        <button class="lock-fx-btn active" id="btn-toggle-lock-fx" title="When active, presets only change the amp &amp; tone stack, preserving your active delay, reverb, modulation, and compressor pedals">
+          <span class="lock-icon">🔒</span>
+          <span id="lock-fx-text">Effects Locked</span>
+        </button>
+        <button class="btn-secondary" id="btn-save-preset" title="Save current settings as a user preset">Save Preset</button>
+      </div>
+
+      <div class="preset-actions">
+        <button class="btn-secondary" id="btn-sync-amp" title="Read current patch from physical amp">Sync From Amp</button>
+        <button class="btn-secondary" id="btn-export-presets" title="Export all presets as JSON">Export JSON</button>
+        <button class="btn-secondary" id="btn-import-presets" title="Import presets file">Import JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;">
+      </div>
+    </div>
+
+    <!-- Top Grid: Amp Model & Cabinets -->
+    <div class="grid-top">
+      
+      <!-- Card 1: Amp Model Selector -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Amp Model Engine</h2>
+            <span class="card-badge unlocked" id="badge-unlocked-count">9 Voicings (Electric &amp; Acoustic)</span>
+          </div>
+          
+          <!-- Category Filter Tabs -->
+          <div class="seg-selector" id="model-filter-selector">
+            <button class="seg-btn active" data-filter="all" id="btn-filter-all">All (9)</button>
+            <button class="seg-btn" data-filter="electric" id="btn-filter-electric">⚡ Electric (6)</button>
+            <button class="seg-btn" data-filter="acoustic" id="btn-filter-acoustic">🌿 Acoustic &amp; Studio (3)</button>
+          </div>
+        </div>
+
+        <div class="amp-dial-container">
+          <svg viewBox="0 0 280 180" class="model-dial-svg" id="model-dial-svg"></svg>
+        </div>
+
+        <!-- Tactile Model Buttons Grid -->
+        <div class="model-button-grid" id="model-button-grid">
+          <!-- Dynamically generated by app.js -->
+        </div>
+      </div>
+
+      <!-- Card 2: Speaker Cabinet Simulator -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Cabinet Simulator</h2>
+            <span class="card-badge">7 Models</span>
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted);">Discrete DSP Cab Voicing</span>
+        </div>
+
+        <div class="cab-grid" id="cab-grid">
+          <!-- Dynamically populated by app.js -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Preamp & Independent 3-Band Tone Stack -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2 class="card-title">Preamp &amp; 3-Band EQ</h2>
+          <span class="card-badge unlocked">Dynamic Tube Modeling</span>
+        </div>
+        <button class="solo-boost-btn" id="btn-solo-boost" title="Musical +4 dB Singing Mid Lift for Leads">
+          <span class="solo-icon">🔥</span>
+          <span id="solo-boost-text">Solo Boost (+4dB)</span>
+        </button>
+      </div>
+
+      <div class="knobs-row" id="preamp-knobs">
+        <!-- Rendered by app.js: Gain, Master, Bass, Middle, Treble, Tube Sag -->
+      </div>
+    </div>
+
+    <!-- Rack Processors Grid -->
+    <div class="grid-rack">
+
+      <!-- Compressor Card (Hidden on physical THR5) -->
+      <div class="card" id="card-comp">
+        <div class="card-header">
+          <div class="card-title-group">
+            <button class="power-switch" id="btn-comp-power" title="Compressor On/Off">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/></svg>
+            </button>
+            <h2 class="card-title">Compressor</h2>
+            <span class="card-badge unlocked">Hidden on THR5</span>
+          </div>
+
+          <div class="seg-selector" id="comp-type-selector">
+            <button class="seg-btn active" data-type="0">Stomp</button>
+            <button class="seg-btn" data-type="1">Studio Rack</button>
+          </div>
+        </div>
+
+        <div class="knobs-row" id="comp-knobs">
+          <!-- Dynamically populated based on Stomp vs Rack -->
+        </div>
+      </div>
+
+      <!-- Studio Noise Gate Card (Hidden on physical THR5/THR5A) -->
+      <div class="card" id="card-gate">
+        <div class="card-header">
+          <div class="card-title-group">
+            <button class="power-switch" id="btn-gate-power" title="Noise Gate On/Off">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/></svg>
+            </button>
+            <h2 class="card-title">Noise Gate</h2>
+            <span class="card-badge unlocked">Hidden Processor</span>
+          </div>
+        </div>
+
+        <div class="knobs-row" id="gate-knobs">
+          <!-- Threshold, Release -->
+        </div>
+      </div>
+
+      <!-- Modulation Card -->
+      <div class="card" id="card-mod">
+        <div class="card-header">
+          <div class="card-title-group">
+            <button class="power-switch" id="btn-mod-power" title="Modulation On/Off">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/></svg>
+            </button>
+            <h2 class="card-title">Modulation</h2>
+          </div>
+
+          <div class="seg-selector" id="mod-type-selector">
+            <button class="seg-btn active" data-type="0">Chorus</button>
+            <button class="seg-btn" data-type="1">Flanger</button>
+            <button class="seg-btn" data-type="2">Tremolo</button>
+            <button class="seg-btn" data-type="3">Phaser</button>
+          </div>
+        </div>
+
+        <div class="knobs-row" id="mod-knobs">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Studio Delay Card -->
+      <div class="card" id="card-delay">
+        <div class="card-header">
+          <div class="card-title-group">
+            <button class="power-switch" id="btn-delay-power" title="Delay On/Off">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/></svg>
+            </button>
+            <h2 class="card-title">Studio Delay</h2>
+          </div>
+
+          <button class="btn-secondary" id="btn-tap-tempo" style="font-size: 11px; padding: 4px 10px;">TAP</button>
+        </div>
+
+        <div class="knobs-row" id="delay-knobs">
+          <!-- Time, Feedback, High Cut, Low Cut, Level -->
+        </div>
+      </div>
+
+      <!-- Studio Reverb Card -->
+      <div class="card" id="card-reverb">
+        <div class="card-header">
+          <div class="card-title-group">
+            <button class="power-switch" id="btn-reverb-power" title="Reverb On/Off">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/></svg>
+            </button>
+            <h2 class="card-title">Studio Reverb</h2>
+          </div>
+
+          <div class="seg-selector" id="reverb-type-selector">
+            <button class="seg-btn active" data-type="0">Hall</button>
+            <button class="seg-btn" data-type="1">Room</button>
+            <button class="seg-btn" data-type="2">Plate</button>
+            <button class="seg-btn" data-type="3">Spring</button>
+          </div>
+        </div>
+
+        <!-- Integrated Room Acoustic Presence (Yamaha SREV2 DSP Space) -->
+        <div class="presence-bar-inline">
+          <span class="presence-inline-label">ACOUSTIC SPACE:</span>
+          <div class="presence-pills-row" id="presence-pills">
+            <button class="presence-pill-inline active" data-presence="studio" id="pill-presence-studio" title="Tight &amp; Dry Studio Direct acoustic">
+              <span class="pill-dot"></span>
+              <span>Studio Direct</span>
+            </button>
+            <button class="presence-pill-inline" data-presence="room" id="pill-presence-room" title="Natural in-the-room 3D amplifier air">
+              <span class="pill-dot"></span>
+              <span>In The Room (3D Air)</span>
+            </button>
+            <button class="presence-pill-inline" data-presence="stadium" id="pill-presence-stadium" title="Decoupled pre-delay arena stage bloom">
+              <span class="pill-dot"></span>
+              <span>Stadium Bloom</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="knobs-row" id="reverb-knobs">
+          <!-- Reverb Time, Pre-Delay, Low/High Cut, Level -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- System Controls Bar -->
+    <div class="system-card">
+      <div style="font-weight: 700; font-size: 14px;">Amp Hardware Features</div>
+
+      <div class="system-group">
+        <div class="toggle-item" id="toggle-wide-stereo">
+          <div class="toggle-switch"></div>
+          <span class="toggle-label">Wide Stereo Imaging</span>
+        </div>
+
+        <div class="toggle-item" id="toggle-tube-lamp">
+          <div class="toggle-switch"></div>
+          <span class="toggle-label">Simulated Tube Glow Lamp</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
+          <span class="toggle-label" title="DSP Block 1 Param 8: Master Speaker Cabinet Voicing Filter (Saved in EEPROM)">Speaker Voicing:</span>
+          <select id="select-voicing" style="background: #252830; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">
+            <option value="0">Curve 0 (Flat / Acoustic Clean)</option>
+            <option value="1">Curve 1 (Warm Resonance)</option>
+            <option value="2">Curve 2 (Mid-Focus)</option>
+            <option value="3">Curve 3 (Bright Clarity)</option>
+            <option value="4" selected>Curve 4 (Electric Standard)</option>
+          </select>
+          <span class="card-badge unlocked" style="font-size: 10px; padding: 2px 6px;" title="Survives power cycle">EEPROM</span>
+        </div>
+
+        <button class="btn btn-secondary" id="btn-light-show" style="margin-left: 12px; padding: 4px 10px; font-size: 11px; font-weight: 700; border-color: var(--accent); color: var(--accent);" title="Trigger interactive vacuum tube strobe light show on the physical amp">✨ Light Show</button>
+      </div>
+    </div>
+
+    <!-- Advanced Hardware & Coprocessor Lab (Collapsible Pro Tool) -->
+    <div class="lab-accordion-wrap">
+      <button class="lab-accordion-trigger" id="header-modular-dsp">
+        <div class="lab-trigger-left">
+          <span class="lab-icon">🔬</span>
+          <span class="lab-title">Advanced Coprocessor &amp; Hardware Lab</span>
+          <span class="lab-badge">Protocol 2 Bench</span>
+        </div>
+        <div class="lab-trigger-right">
+          <span class="lab-subtitle">Direct Register Batch Injector</span>
+          <span id="dsp-toggle-icon" class="lab-arrow">▼</span>
+        </div>
+      </button>
+
+      <div class="modular-dsp-body" id="modular-dsp-body" style="display: none;">
+        <div class="lab-intro-text">
+          Developer diagnostic interface for Protocol 2 (<code style="color: var(--accent);">F0 43 10 47 ... F7</code>). Directly addresses the 8 internal DSP coprocessor blocks at <code style="color: var(--accent);">u5_io.c</code> with atomic hardware latching.
+        </div>
+
+        <!-- Quick Macro Actions Grid -->
+        <div class="dsp-macros-grid">
+          <div class="dsp-macro-card">
+            <div class="dsp-macro-title">Yamaha SREV2 Reverb Studio Mode</div>
+            <div class="dsp-macro-desc">Decouples pre-delay and 14 early reflection taps from main decay time on DSP Block 6.</div>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-secondary btn-sm" id="btn-dsp-srev2-dry">Dry Studio (0ms)</button>
+              <button class="btn btn-secondary btn-sm" id="btn-dsp-srev2-spacious">Spacious Hall (45ms)</button>
+            </div>
+          </div>
+
+          <div class="dsp-macro-card">
+            <div class="dsp-macro-title">Continuous 60Hz LFO Streamer</div>
+            <div class="dsp-macro-desc">Streams high-speed 60Hz sinusoidal register updates over Web MIDI to demonstrate zero zipper noise.</div>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-secondary btn-sm" id="btn-dsp-lfo-toggle">▶ Start 60Hz Stream</button>
+              <span id="dsp-lfo-status" style="font-size: 11px; color: var(--text-muted); align-self: center;">Idle</span>
+            </div>
+          </div>
+
+          <div class="dsp-macro-card">
+            <div class="dsp-macro-title">Direct Filter Cutoff Matrix</div>
+            <div class="dsp-macro-desc">Writes discrete filter poles directly to Block 7 acoustic cabinet filter array (40Hz to 2880Hz).</div>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-secondary btn-sm" id="btn-dsp-filter-deep">Deep Resonance</button>
+              <button class="btn btn-secondary btn-sm" id="btn-dsp-filter-air">Acoustic Air</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Direct Register Batch Injector Form -->
+        <div class="dsp-manual-section">
+          <div style="font-weight: 700; font-size: 12px; margin-bottom: 8px; color: var(--text-main);">Direct Register Batch Injector</div>
+          <div class="dsp-form-row">
+            <div class="dsp-field">
+              <label>DSP Block</label>
+              <select id="dsp-block-select" class="dsp-input">
+                <option value="0">Block 0: Input & Preamp</option>
+                <option value="1" selected>Block 1: Amp Modeling & Voicing</option>
+                <option value="2">Block 2: Tone Stack & EQ</option>
+                <option value="3">Block 3: Dynamics & Compressor</option>
+                <option value="4">Block 4: VCM Vintage Modulation</option>
+                <option value="5">Block 5: Stereo Delay</option>
+                <option value="6">Block 6: Yamaha SREV2 Studio Reverb</option>
+                <option value="7">Block 7: Cabinet & Spatializer</option>
+              </select>
+            </div>
+
+            <div class="dsp-field">
+              <label>16-Bit Register Address (Hex)</label>
+              <input type="text" id="dsp-reg-addr" class="dsp-input" value="0x1C54" placeholder="0x1C54">
+            </div>
+
+            <div class="dsp-field">
+              <label>16-Bit Value (Hex/Dec)</label>
+              <input type="text" id="dsp-reg-val" class="dsp-input" value="0x0000" placeholder="0x0000">
+            </div>
+
+            <button class="btn btn-primary btn-sm" id="btn-dsp-send" style="align-self: flex-end; height: 34px;">Inject Frame</button>
+          </div>
+
+          <!-- Live Wire Traffic Monitor -->
+          <div class="dsp-traffic-box" id="dsp-traffic-box">
+            <span style="color: var(--text-muted);">Protocol 2 Traffic Monitor:</span>
+            <span id="dsp-traffic-log" style="font-family: var(--font-mono); color: var(--accent); margin-left: 8px;">Ready (No packet sent)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Floating Toast Message -->
+  <div class="toast-msg" id="toast-msg"></div>
+
+  <!-- Scripts -->
+  <script src="thr-protocol.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

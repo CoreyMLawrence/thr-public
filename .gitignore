@@ -1,0 +1,23 @@
+# Exclude proprietary firmware images and audio containers
+*.bin
+*.mid
+*.syx
+*.rom
+*.dump
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

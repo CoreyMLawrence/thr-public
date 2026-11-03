@@ -1,0 +1,1799 @@
+{
+ "about": "THR5A live parameter map, measured on Corey's amp 2026-09-22 with thr_map.py. THR5A firmware (heartbeat 0x34). Raw logs in map/.",
+ "command": "F0 43 7D 10 41 30 01 <addr> <hi> <lo> F7, value = (hi << 7) | lo, hi = value >> 7",
+ "address_window": {
+  "first": 0,
+  "last": 95,
+  "body_offset": "145 + addr",
+  "note": "addresses 0x60-0x7F change nothing in the block"
+ },
+ "firmware_range_checks": "none, except amp model (clamped to 0..4 on the parameter path). Enforce every range in the host.",
+ "wide_fields_follow_type": "0x11 is 1 byte under Stomp, 14-bit under Rack. 0x41 is 14-bit under Hall/Room/Plate, 1 byte under Spring.",
+ "loader": {
+  "kept": "body 17-80 (patch name) and 145-240 (the parameter window)",
+  "reset_to_zero": "body 81-144 and 241-272",
+  "kept_offsets_tested": 128,
+  "reset_offsets_tested": 96
+ },
+ "amp_broadcasts": {
+  "heartbeat": "F0 43 7D 60 44 54 41 <model> F7, about 2/s",
+  "status": "F0 43 7D 30 41 30 02 04 F7, about 2/s, meaning unknown",
+  "echo": "F0 43 7D 10 41 30 01 <addr> <hi> <lo> F7 whenever the firmware changes a value itself (type defaults, amp model side effects)"
+ },
+ "amp_model_side_effects": "index 0 sets cabinet 4 (1x12). Indices 1-4 set cabinet 6 (None) and gate off.",
+ "blocks": {
+  "amp": {
+   "type_addr": 0,
+   "types": [
+    {
+     "index": 0,
+     "name": "panel 1",
+     "fields": [
+      {
+       "addr": 1,
+       "addr_hex": "0x01",
+       "body": 146,
+       "payload": 129,
+       "width": 1,
+       "name": "gain",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "gain",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 2,
+       "addr_hex": "0x02",
+       "body": 147,
+       "payload": 130,
+       "width": 1,
+       "name": "master",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "master",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 3,
+       "addr_hex": "0x03",
+       "body": 148,
+       "payload": 131,
+       "width": 1,
+       "name": "bass",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "bass",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 4,
+       "addr_hex": "0x04",
+       "body": 149,
+       "payload": 132,
+       "width": 1,
+       "name": "middle",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "middle",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 5,
+       "addr_hex": "0x05",
+       "body": 150,
+       "payload": 133,
+       "width": 1,
+       "name": "treble",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "treble",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 6,
+       "addr_hex": "0x06",
+       "body": 151,
+       "payload": 134,
+       "width": 1,
+       "name": "cabinet",
+       "default": 4,
+       "default_source": "amp broadcast on type switch"
+      }
+     ],
+     "switch_turns_block_on": false
+    },
+    {
+     "index": 1,
+     "name": "panel 2",
+     "fields": [
+      {
+       "addr": 1,
+       "addr_hex": "0x01",
+       "body": 146,
+       "payload": 129,
+       "width": 1,
+       "name": "gain",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "gain",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 2,
+       "addr_hex": "0x02",
+       "body": 147,
+       "payload": 130,
+       "width": 1,
+       "name": "master",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "master",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 3,
+       "addr_hex": "0x03",
+       "body": 148,
+       "payload": 131,
+       "width": 1,
+       "name": "bass",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "bass",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 4,
+       "addr_hex": "0x04",
+       "body": 149,
+       "payload": 132,
+       "width": 1,
+       "name": "middle",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "middle",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 5,
+       "addr_hex": "0x05",
+       "body": 150,
+       "payload": 133,
+       "width": 1,
+       "name": "treble",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "treble",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 6,
+       "addr_hex": "0x06",
+       "body": 151,
+       "payload": 134,
+       "width": 1,
+       "name": "cabinet",
+       "default": 6,
+       "default_source": "amp broadcast on type switch"
+      },
+      {
+       "addr": 95,
+       "addr_hex": "0x5F",
+       "body": 240,
+       "payload": 223,
+       "width": 1,
+       "name": "gate on/off (set off)",
+       "default": 127,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "gate",
+         0,
+         0
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": false
+    },
+    {
+     "index": 2,
+     "name": "panel 3",
+     "fields": [
+      {
+       "addr": 1,
+       "addr_hex": "0x01",
+       "body": 146,
+       "payload": 129,
+       "width": 1,
+       "name": "gain",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "gain",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 2,
+       "addr_hex": "0x02",
+       "body": 147,
+       "payload": 130,
+       "width": 1,
+       "name": "master",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "master",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 3,
+       "addr_hex": "0x03",
+       "body": 148,
+       "payload": 131,
+       "width": 1,
+       "name": "bass",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "bass",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 4,
+       "addr_hex": "0x04",
+       "body": 149,
+       "payload": 132,
+       "width": 1,
+       "name": "middle",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "middle",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 5,
+       "addr_hex": "0x05",
+       "body": 150,
+       "payload": 133,
+       "width": 1,
+       "name": "treble",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "treble",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 6,
+       "addr_hex": "0x06",
+       "body": 151,
+       "payload": 134,
+       "width": 1,
+       "name": "cabinet",
+       "default": 6,
+       "default_source": "amp broadcast on type switch"
+      },
+      {
+       "addr": 95,
+       "addr_hex": "0x5F",
+       "body": 240,
+       "payload": 223,
+       "width": 1,
+       "name": "gate on/off (set off)",
+       "default": 127,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "gate",
+         0,
+         0
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": false
+    },
+    {
+     "index": 3,
+     "name": "panel 4",
+     "fields": [
+      {
+       "addr": 1,
+       "addr_hex": "0x01",
+       "body": 146,
+       "payload": 129,
+       "width": 1,
+       "name": "gain",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "gain",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 2,
+       "addr_hex": "0x02",
+       "body": 147,
+       "payload": 130,
+       "width": 1,
+       "name": "master",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "master",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 3,
+       "addr_hex": "0x03",
+       "body": 148,
+       "payload": 131,
+       "width": 1,
+       "name": "bass",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "bass",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 4,
+       "addr_hex": "0x04",
+       "body": 149,
+       "payload": 132,
+       "width": 1,
+       "name": "middle",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "middle",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 5,
+       "addr_hex": "0x05",
+       "body": 150,
+       "payload": 133,
+       "width": 1,
+       "name": "treble",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "treble",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 6,
+       "addr_hex": "0x06",
+       "body": 151,
+       "payload": 134,
+       "width": 1,
+       "name": "cabinet",
+       "default": 6,
+       "default_source": "amp broadcast on type switch"
+      },
+      {
+       "addr": 95,
+       "addr_hex": "0x5F",
+       "body": 240,
+       "payload": 223,
+       "width": 1,
+       "name": "gate on/off (set off)",
+       "default": 127,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "gate",
+         0,
+         0
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": false
+    },
+    {
+     "index": 4,
+     "name": "panel 5",
+     "fields": [
+      {
+       "addr": 1,
+       "addr_hex": "0x01",
+       "body": 146,
+       "payload": 129,
+       "width": 1,
+       "name": "gain",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "gain",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 2,
+       "addr_hex": "0x02",
+       "body": 147,
+       "payload": 130,
+       "width": 1,
+       "name": "master",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "master",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 3,
+       "addr_hex": "0x03",
+       "body": 148,
+       "payload": 131,
+       "width": 1,
+       "name": "bass",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "bass",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 4,
+       "addr_hex": "0x04",
+       "body": 149,
+       "payload": 132,
+       "width": 1,
+       "name": "middle",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "middle",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 5,
+       "addr_hex": "0x05",
+       "body": 150,
+       "payload": 133,
+       "width": 1,
+       "name": "treble",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "treble",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 6,
+       "addr_hex": "0x06",
+       "body": 151,
+       "payload": 134,
+       "width": 1,
+       "name": "cabinet",
+       "default": 6,
+       "default_source": "amp broadcast on type switch"
+      },
+      {
+       "addr": 95,
+       "addr_hex": "0x5F",
+       "body": 240,
+       "payload": 223,
+       "width": 1,
+       "name": "gate on/off (set off)",
+       "default": 127,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "gate",
+         0,
+         0
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": false
+    }
+   ],
+   "fixed_fields": [
+    {
+     "addr": 0,
+     "addr_hex": "0x00",
+     "body": 145,
+     "payload": 128,
+     "width": 1,
+     "name": "amp model",
+     "value_in_test_patch": 0
+    },
+    {
+     "addr": 1,
+     "addr_hex": "0x01",
+     "body": 146,
+     "payload": 129,
+     "width": 1,
+     "name": "gain",
+     "value_in_test_patch": 50,
+     "reference_range": [
+      [
+       "gain",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 2,
+     "addr_hex": "0x02",
+     "body": 147,
+     "payload": 130,
+     "width": 1,
+     "name": "master",
+     "value_in_test_patch": 59,
+     "reference_range": [
+      [
+       "master",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 3,
+     "addr_hex": "0x03",
+     "body": 148,
+     "payload": 131,
+     "width": 1,
+     "name": "bass",
+     "value_in_test_patch": 56,
+     "reference_range": [
+      [
+       "bass",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 4,
+     "addr_hex": "0x04",
+     "body": 149,
+     "payload": 132,
+     "width": 1,
+     "name": "middle",
+     "value_in_test_patch": 39,
+     "reference_range": [
+      [
+       "middle",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 5,
+     "addr_hex": "0x05",
+     "body": 150,
+     "payload": 133,
+     "width": 1,
+     "name": "treble",
+     "value_in_test_patch": 28,
+     "reference_range": [
+      [
+       "treble",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 6,
+     "addr_hex": "0x06",
+     "body": 151,
+     "payload": 134,
+     "width": 1,
+     "name": "cabinet",
+     "value_in_test_patch": 4
+    }
+   ]
+  },
+  "comp": {
+   "type_addr": 16,
+   "types": [
+    {
+     "index": 0,
+     "name": "Stomp",
+     "fields": [
+      {
+       "addr": 17,
+       "addr_hex": "0x11",
+       "body": 162,
+       "payload": 145,
+       "width": 1,
+       "name": "sustain",
+       "default": 50,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "comp.sustain",
+         0,
+         100
+        ],
+        [
+         "rack.threshold",
+         0,
+         600
+        ]
+       ]
+      },
+      {
+       "addr": 18,
+       "addr_hex": "0x12",
+       "body": 163,
+       "payload": 146,
+       "width": 1,
+       "name": "output",
+       "default": 50,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "comp.output",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 31,
+       "addr_hex": "0x1F",
+       "body": 176,
+       "payload": 159,
+       "width": 1,
+       "name": "comp on/off",
+       "default": 0,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "comp",
+         0,
+         0
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 1,
+     "name": "Rack",
+     "fields": [
+      {
+       "addr": 17,
+       "addr_hex": "0x11",
+       "body": 162,
+       "payload": 145,
+       "width": 2,
+       "name": "threshold",
+       "default": 200,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "comp.sustain",
+         0,
+         100
+        ],
+        [
+         "rack.threshold",
+         0,
+         600
+        ]
+       ]
+      },
+      {
+       "addr": 19,
+       "addr_hex": "0x13",
+       "body": 164,
+       "payload": 147,
+       "width": 1,
+       "name": "attack",
+       "default": 65,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "rack.attack",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 20,
+       "addr_hex": "0x14",
+       "body": 165,
+       "payload": 148,
+       "width": 1,
+       "name": "release",
+       "default": 65,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "rack.release",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 21,
+       "addr_hex": "0x15",
+       "body": 166,
+       "payload": 149,
+       "width": 1,
+       "name": "ratio",
+       "default": 0,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "rack.ratio",
+         0,
+         5
+        ]
+       ]
+      },
+      {
+       "addr": 22,
+       "addr_hex": "0x16",
+       "body": 167,
+       "payload": 150,
+       "width": 1,
+       "name": "knee",
+       "default": 1,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "rack.knee",
+         0,
+         2
+        ]
+       ]
+      },
+      {
+       "addr": 23,
+       "addr_hex": "0x17",
+       "body": 168,
+       "payload": 151,
+       "width": 2,
+       "name": "output",
+       "default": 200,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "rack.output",
+         0,
+         600
+        ]
+       ]
+      },
+      {
+       "addr": 31,
+       "addr_hex": "0x1F",
+       "body": 176,
+       "payload": 159,
+       "width": 1,
+       "name": "comp on/off",
+       "default": 0,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "comp",
+         0,
+         0
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    }
+   ]
+  },
+  "mod": {
+   "type_addr": 32,
+   "types": [
+    {
+     "index": 0,
+     "name": "Chorus",
+     "fields": [
+      {
+       "addr": 33,
+       "addr_hex": "0x21",
+       "body": 178,
+       "payload": 161,
+       "width": 1,
+       "name": "speed",
+       "default": 53,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.speed",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 34,
+       "addr_hex": "0x22",
+       "body": 179,
+       "payload": 162,
+       "width": 1,
+       "name": "depth",
+       "default": 29,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.depth",
+         0,
+         100
+        ],
+        [
+         "mod.manual",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 35,
+       "addr_hex": "0x23",
+       "body": 180,
+       "payload": 163,
+       "width": 1,
+       "name": "mix",
+       "default": 34,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.mix",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 1,
+     "name": "Flanger",
+     "fields": [
+      {
+       "addr": 33,
+       "addr_hex": "0x21",
+       "body": 178,
+       "payload": 161,
+       "width": 1,
+       "name": "speed",
+       "default": 14,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.speed",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 34,
+       "addr_hex": "0x22",
+       "body": 179,
+       "payload": 162,
+       "width": 1,
+       "name": "manual",
+       "default": 22,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.depth",
+         0,
+         100
+        ],
+        [
+         "mod.manual",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 35,
+       "addr_hex": "0x23",
+       "body": 180,
+       "payload": 163,
+       "width": 1,
+       "name": "depth",
+       "default": 37,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.mix",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 36,
+       "addr_hex": "0x24",
+       "body": 181,
+       "payload": 164,
+       "width": 1,
+       "name": "feedback",
+       "default": 58,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.feedback",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 37,
+       "addr_hex": "0x25",
+       "body": 182,
+       "payload": 165,
+       "width": 1,
+       "name": "spread",
+       "default": 99,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.spread",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 2,
+     "name": "Tremolo",
+     "fields": [
+      {
+       "addr": 33,
+       "addr_hex": "0x21",
+       "body": 178,
+       "payload": 161,
+       "width": 1,
+       "name": "freq",
+       "default": 50,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.speed",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 34,
+       "addr_hex": "0x22",
+       "body": 179,
+       "payload": 162,
+       "width": 1,
+       "name": "depth",
+       "default": 50,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.depth",
+         0,
+         100
+        ],
+        [
+         "mod.manual",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 3,
+     "name": "Phaser",
+     "fields": [
+      {
+       "addr": 33,
+       "addr_hex": "0x21",
+       "body": 178,
+       "payload": 161,
+       "width": 1,
+       "name": "speed",
+       "default": 53,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.speed",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 34,
+       "addr_hex": "0x22",
+       "body": 179,
+       "payload": 162,
+       "width": 1,
+       "name": "manual",
+       "default": 9,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.depth",
+         0,
+         100
+        ],
+        [
+         "mod.manual",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 35,
+       "addr_hex": "0x23",
+       "body": 180,
+       "payload": 163,
+       "width": 1,
+       "name": "depth",
+       "default": 88,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.mix",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 36,
+       "addr_hex": "0x24",
+       "body": 181,
+       "payload": 164,
+       "width": 1,
+       "name": "feedback",
+       "default": 6,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "mod.feedback",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    }
+   ]
+  },
+  "reverb": {
+   "type_addr": 64,
+   "types": [
+    {
+     "index": 0,
+     "name": "Hall",
+     "fields": [
+      {
+       "addr": 65,
+       "addr_hex": "0x41",
+       "body": 210,
+       "payload": 193,
+       "width": 2,
+       "name": "time",
+       "default": 29,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.time",
+         3,
+         200
+        ],
+        [
+         "reverb.amount",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 67,
+       "addr_hex": "0x43",
+       "body": 212,
+       "payload": 195,
+       "width": 2,
+       "name": "pre-delay",
+       "default": 237,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.pre",
+         1,
+         2000
+        ]
+       ]
+      },
+      {
+       "addr": 69,
+       "addr_hex": "0x45",
+       "body": 214,
+       "payload": 197,
+       "width": 2,
+       "name": "low cut",
+       "default": null,
+       "default_source": "not changed by the type switch (carried over from the patch)",
+       "reference_range": [
+        [
+         "reverb.lowcut",
+         21,
+         8000
+        ]
+       ]
+      },
+      {
+       "addr": 71,
+       "addr_hex": "0x47",
+       "body": 216,
+       "payload": 199,
+       "width": 2,
+       "name": "high cut",
+       "default": 8500,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.highcut",
+         1000,
+         16001
+        ]
+       ]
+      },
+      {
+       "addr": 73,
+       "addr_hex": "0x49",
+       "body": 218,
+       "payload": 201,
+       "width": 1,
+       "name": "high ratio",
+       "default": 8,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.highratio",
+         1,
+         10
+        ]
+       ]
+      },
+      {
+       "addr": 74,
+       "addr_hex": "0x4A",
+       "body": 219,
+       "payload": 202,
+       "width": 1,
+       "name": "low ratio",
+       "default": 9,
+       "default_source": "amp broadcast on type switch",
+       "disagreement": "block read 0, amp announced 9; read likely raced the default load",
+       "reference_range": [
+        [
+         "reverb.lowratio",
+         1,
+         14
+        ]
+       ]
+      },
+      {
+       "addr": 75,
+       "addr_hex": "0x4B",
+       "body": 220,
+       "payload": 203,
+       "width": 1,
+       "name": "level",
+       "default": 73,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.level",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 1,
+     "name": "Room",
+     "fields": [
+      {
+       "addr": 65,
+       "addr_hex": "0x41",
+       "body": 210,
+       "payload": 193,
+       "width": 2,
+       "name": "time",
+       "default": 5,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.time",
+         3,
+         200
+        ],
+        [
+         "reverb.amount",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 67,
+       "addr_hex": "0x43",
+       "body": 212,
+       "payload": 195,
+       "width": 2,
+       "name": "pre-delay",
+       "default": 1,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.pre",
+         1,
+         2000
+        ]
+       ]
+      },
+      {
+       "addr": 69,
+       "addr_hex": "0x45",
+       "body": 214,
+       "payload": 197,
+       "width": 2,
+       "name": "low cut",
+       "default": 50,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.lowcut",
+         21,
+         8000
+        ]
+       ]
+      },
+      {
+       "addr": 71,
+       "addr_hex": "0x47",
+       "body": 216,
+       "payload": 199,
+       "width": 2,
+       "name": "high cut",
+       "default": 6300,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.highcut",
+         1000,
+         16001
+        ]
+       ]
+      },
+      {
+       "addr": 73,
+       "addr_hex": "0x49",
+       "body": 218,
+       "payload": 201,
+       "width": 1,
+       "name": "high ratio",
+       "default": 7,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.highratio",
+         1,
+         10
+        ]
+       ]
+      },
+      {
+       "addr": 74,
+       "addr_hex": "0x4A",
+       "body": 219,
+       "payload": 202,
+       "width": 1,
+       "name": "low ratio",
+       "default": 10,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.lowratio",
+         1,
+         14
+        ]
+       ]
+      },
+      {
+       "addr": 75,
+       "addr_hex": "0x4B",
+       "body": 220,
+       "payload": 203,
+       "width": 1,
+       "name": "level",
+       "default": 73,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.level",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 2,
+     "name": "Plate",
+     "fields": [
+      {
+       "addr": 65,
+       "addr_hex": "0x41",
+       "body": 210,
+       "payload": 193,
+       "width": 2,
+       "name": "time",
+       "default": 27,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.time",
+         3,
+         200
+        ],
+        [
+         "reverb.amount",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 67,
+       "addr_hex": "0x43",
+       "body": 212,
+       "payload": 195,
+       "width": 2,
+       "name": "pre-delay",
+       "default": 1,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.pre",
+         1,
+         2000
+        ]
+       ]
+      },
+      {
+       "addr": 69,
+       "addr_hex": "0x45",
+       "body": 214,
+       "payload": 197,
+       "width": 2,
+       "name": "low cut",
+       "default": 97,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.lowcut",
+         21,
+         8000
+        ]
+       ]
+      },
+      {
+       "addr": 71,
+       "addr_hex": "0x47",
+       "body": 216,
+       "payload": 199,
+       "width": 2,
+       "name": "high cut",
+       "default": 2991,
+       "default_source": "block read after type switch",
+       "reference_range": [
+        [
+         "reverb.highcut",
+         1000,
+         16001
+        ]
+       ]
+      },
+      {
+       "addr": 73,
+       "addr_hex": "0x49",
+       "body": 218,
+       "payload": 201,
+       "width": 1,
+       "name": "high ratio",
+       "default": 4,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.highratio",
+         1,
+         10
+        ]
+       ]
+      },
+      {
+       "addr": 74,
+       "addr_hex": "0x4A",
+       "body": 219,
+       "payload": 202,
+       "width": 1,
+       "name": "low ratio",
+       "default": 9,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.lowratio",
+         1,
+         14
+        ]
+       ]
+      },
+      {
+       "addr": 75,
+       "addr_hex": "0x4B",
+       "body": 220,
+       "payload": 203,
+       "width": 1,
+       "name": "level",
+       "default": 73,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.level",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    },
+    {
+     "index": 3,
+     "name": "Spring",
+     "fields": [
+      {
+       "addr": 65,
+       "addr_hex": "0x41",
+       "body": 210,
+       "payload": 193,
+       "width": 1,
+       "name": "reverb",
+       "default": 50,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.time",
+         3,
+         200
+        ],
+        [
+         "reverb.amount",
+         0,
+         100
+        ]
+       ]
+      },
+      {
+       "addr": 66,
+       "addr_hex": "0x42",
+       "body": 211,
+       "payload": 194,
+       "width": 1,
+       "name": "filter",
+       "default": 100,
+       "default_source": "amp broadcast on type switch",
+       "reference_range": [
+        [
+         "reverb.filter",
+         0,
+         100
+        ]
+       ]
+      }
+     ],
+     "switch_turns_block_on": true
+    }
+   ]
+  },
+  "delay": {
+   "type_addr": null,
+   "fields": [
+    {
+     "addr": 49,
+     "addr_hex": "0x31",
+     "body": 194,
+     "payload": 177,
+     "width": 2,
+     "name": "time",
+     "value_in_test_patch": 3910,
+     "reference_range": [
+      [
+       "delay.time",
+       1,
+       9999
+      ]
+     ]
+    },
+    {
+     "addr": 51,
+     "addr_hex": "0x33",
+     "body": 196,
+     "payload": 179,
+     "width": 1,
+     "name": "feedback",
+     "value_in_test_patch": 46,
+     "reference_range": [
+      [
+       "delay.feedback",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 52,
+     "addr_hex": "0x34",
+     "body": 197,
+     "payload": 180,
+     "width": 2,
+     "name": "high cut",
+     "value_in_test_patch": 12000,
+     "reference_range": [
+      [
+       "delay.highcut",
+       1000,
+       16001
+      ]
+     ]
+    },
+    {
+     "addr": 54,
+     "addr_hex": "0x36",
+     "body": 199,
+     "payload": 182,
+     "width": 2,
+     "name": "low cut",
+     "value_in_test_patch": 21,
+     "reference_range": [
+      [
+       "delay.lowcut",
+       21,
+       8000
+      ]
+     ]
+    },
+    {
+     "addr": 56,
+     "addr_hex": "0x38",
+     "body": 201,
+     "payload": 184,
+     "width": 1,
+     "name": "level",
+     "value_in_test_patch": 18,
+     "reference_range": [
+      [
+       "delay.level",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 63,
+     "addr_hex": "0x3F",
+     "body": 208,
+     "payload": 191,
+     "width": 1,
+     "name": "delay on/off",
+     "value_in_test_patch": 127,
+     "reference_range": [
+      [
+       "delay",
+       0,
+       0
+      ]
+     ]
+    }
+   ]
+  },
+  "gate": {
+   "type_addr": 80,
+   "fields": [
+    {
+     "addr": 81,
+     "addr_hex": "0x51",
+     "body": 226,
+     "payload": 209,
+     "width": 1,
+     "name": "threshold",
+     "value_in_test_patch": 50,
+     "reference_range": [
+      [
+       "gate.threshold",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 82,
+     "addr_hex": "0x52",
+     "body": 227,
+     "payload": 210,
+     "width": 1,
+     "name": "release",
+     "value_in_test_patch": 50,
+     "reference_range": [
+      [
+       "gate.release",
+       0,
+       100
+      ]
+     ]
+    },
+    {
+     "addr": 95,
+     "addr_hex": "0x5F",
+     "body": 240,
+     "payload": 223,
+     "width": 1,
+     "name": "gate on/off",
+     "value_in_test_patch": 127,
+     "reference_range": [
+      [
+       "gate",
+       0,
+       0
+      ]
+     ]
+    }
+   ],
+   "note": "writing 0x50 makes the amp re-announce threshold 0x51 and release 0x52 (both 50)"
+  }
+ }
+}
