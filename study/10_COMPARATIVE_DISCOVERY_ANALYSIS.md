@@ -1,133 +1,127 @@
-# Yamaha THR Reverse Engineering: Further Discoveries and Related Work
+# Yamaha THR Reverse Engineering: Discovery Map
 
-## Purpose and Context
+## What this page is for
 
-Michael Forney's [`michaelforney/thr10`](https://github.com/michaelforney/thr10) is an important reference for anyone studying Yamaha THR firmware. Published in 2014–2016, it demonstrated that the Yamaha THR10 main application firmware (DTAm) could be dumped over USB MIDI SysEx, modified, and reflashed without replacing the primary bootloader (DTAb). The repository also includes useful C and Lua tooling, symbol notes for the THR10C `ver104c_20120803` build, and a practical example of adding a button-combination hook in `patch.c`.
+Michael Forney's [`michaelforney/thr10`](https://github.com/michaelforney/thr10) is a useful starting point for Yamaha THR firmware research. This page is organized for readers who have explored that work and want a simple way to follow related THR5 and THR5A investigations in this repository.
 
-This document is intended as a companion for readers who have reviewed Forney's work and want to explore related investigations carried out on THR5 and THR5A firmware. It records observations, experiments, and tools that extend the same general line of inquiry into hardware compatibility, DSP behavior, persistent settings, recovery, validation, and user interfaces. It is not intended as a ranking of projects or as a replacement for Forney's documentation.
+The short summaries below answer three questions:
 
-## Areas for Further Exploration
+1. **What was investigated?**
+2. **Where is the detailed evidence?**
+3. **What can I read or run next?**
 
-The topics below may be useful starting points when moving from the THR10C examples in Forney's repository to other hardware revisions and firmware builds.
+For the practical workflow, start with the repository's [README](../README.md), then use the [tooling quickstart](../guides/QUICKSTART_TOOLING.md), [firmware extraction guide](../guides/EXTRACTING_FIRMWARE.md), and [pre-flight flashing guide](../guides/VERIFY_AND_FLASH.md). The [disaster recovery guide](../guides/DISASTER_RECOVERY.md) should be read before experimenting with hardware recovery.
 
-### 1. Firmware Interoperability and Platform Compatibility
+## Start here: the discovery map
 
-Experiments with physical Yamaha THR5A hardware found that official THR5 (Version 2 electric) firmware boots and operates on the device without hardware modification. The experiments suggest that the microcontroller peripherals, Flash layout, audio codec I2S connections, potentiometer ADCs, and DSP coprocessor registers are shared across these firmware distributions.
+| Discovery | In one sentence | Detailed chapter | Useful next step |
+|---|---|---|---|
+| THR5 and THR5A firmware compatibility | Software tables appear to account for important model and identity differences across related hardware. | [Chapter 1: Hardware & Silicon](01_HARDWARE_AND_SILICON.md) | [Extract a factory firmware image](../guides/EXTRACTING_FIRMWARE.md) before comparing builds. |
+| Firmware layout and symbols | The DTAm application, memory regions, and Thumb execution rules provide the map for safe analysis. | [Chapter 2: Firmware & Memory Map](02_FIRMWARE_AND_MEMORY_MAP.md) | Review [custom patching](../guides/CREATING_CUSTOM_PATCHES.md) and [patch boilerplate](../tools/patch_template.py). |
+| Two live SysEx paths | Parameter commands and settings blocks take different paths through the running firmware. | [Chapter 3: Live SysEx & Dual-Door Protocol](03_LIVE_SYSEX_AND_DUAL_DOOR_PROTOCOL.md) | Try the [live MIDI tooling](11_TOOLING_AND_AUTOMATION_GUIDE.md) or inspect [`thr_live.py`](../tools/thr_live.py). |
+| DSP block dispatch | A lower-level dispatcher connects firmware commands to model, tone, cabinet, effects, and dynamics blocks. | [Chapter 4: DSP Coprocessor](04_DSP_COPROCESSOR_AND_AUDIO_PIPELINE.md) | Follow the [DSP block directory](04_DSP_COPROCESSOR_AND_AUDIO_PIPELINE.md#2-dsp-algorithmic-block-directory). |
+| Tone-stack behavior | Model-specific tone shaping helps explain the low-frequency response observed on the THR5 Clean model. | [Chapter 5: Tone Stack](05_TONE_STACK_AND_FREQUENCY_RESPONSE.md) | See the [tone-stack injection hook](05_TONE_STACK_AND_FREQUENCY_RESPONSE.md#3-the-engineering-solution-the-eg-clean-tone-stack). |
+| Compressor and effects paths | The effects engine contains separate stompbox, rack-compressor, modulation, delay, reverb, and gate paths. | [Chapter 6: Effects Engine](06_EFFECTS_ENGINE_AND_RACK_COMPRESSOR.md) | Compare live control with the [`thr_params.json`](../tools/thr_params.json) parameter map. |
+| Ten-position rotary experiments | The rotary input, model limits, display, LEDs, and knob cache can be studied as one UI subsystem. | [Chapter 7: Rotary Encoder & UI](07_ROTARY_ENCODER_AND_UI_EXPANSION.md) | Start with [custom rotary patches](../guides/CREATING_CUSTOM_PATCHES.md#example-a-customizing-rotary-selector-behavior--limits). |
+| EEPROM and recovery | Persistent preferences and the update-mode sentinel are documented alongside a hardware recovery procedure. | [Chapter 8: EEPROM & Recovery](08_EEPROM_MAP_AND_HARDWARE_RECOVERY.md) | Read the [disaster recovery manual](../guides/DISASTER_RECOVERY.md) before touching `IC11`. |
+| Automated safety checks | Emulation, opcode checks, MIDI-container validation, and binary auditing form a pre-flash review chain. | [Chapter 9: Safety Gates](09_SAFETY_GATES_AND_CPU_EMULATION.md) | Run the checks described in the [pre-flight guide](../guides/VERIFY_AND_FLASH.md). |
+| Python tooling | The repository includes utilities for containers, live MIDI, settings blocks, and patch creation. | [Chapter 11: Tooling & Automation](11_TOOLING_AND_AUTOMATION_GUIDE.md) | Begin with the [tooling quickstart](../guides/QUICKSTART_TOOLING.md). |
+| Browser-based control | The Web MIDI Studio provides a browser interface for live parameters and selected persistent settings. | [Chapter 12: Web MIDI Studio](12_WEB_MIDI_STUDIO_ARCHITECTURE.md) | Read the [web-studio README](../web-studio/README.md), then explore [`app.js`](../web-studio/app.js) and [`thr-protocol.js`](../web-studio/thr-protocol.js). |
 
-Device identity and behavior—including heartbeat SysEx identity (`0x30` for THR5 and `0x34` for THR5A), default model tables, and rotary-switch names—appear to be controlled by software tables in `DTAm`. This makes cross-model firmware behavior an interesting area for careful, device-specific testing.
+## A guided reading path
 
-### 2. Settings-Block SysEx Behavior
+### 1. Understand the hardware and firmware boundary
 
-Forney's repository provides a useful foundation for understanding Yamaha's USB MIDI SysEx flashing protocol. Additional work examined the live parameter and settings paths used after firmware has started:
+Start with [Chapter 1](01_HARDWARE_AND_SILICON.md) for the THR5/THR5A hardware context. Then read [Chapter 2](02_FIRMWARE_AND_MEMORY_MAP.md) to understand the DTAm application, protected regions, symbols, and Thumb code.
 
-1. The parameter command path (`F0 43 7D 10 41 30 01 <param> <val> F7`) applies validation to model indices.
-2. The settings-block path (`F0 43 7D 20 44 54 41 31 ... 00 ... F7`) loads a complete amplifier state into memory.
+If you are working with your own amplifier, use the [firmware extraction guide](../guides/EXTRACTING_FIRMWARE.md) before making any changes. The extraction workflow gives you a known-good image for later comparison and recovery.
 
-In the firmware examined here, the settings-block loader does not apply the same range checks to the amp-model byte (offset 128) and cabinet-model byte (offset 134). Carefully constructed settings blocks can therefore select additional DSP models already present in the image, including Bass, Acoustic, Flat, and alternate VCM voicings. This is a useful example of how different control paths can expose different behavior without changing the ROM.
+### 2. Learn the two control surfaces
 
-### 3. Rotary Selector and Model-Bank Experiments
+[Chapter 3](03_LIVE_SYSEX_AND_DUAL_DOOR_PROTOCOL.md) explains the live MIDI protocol, the settings-block structure, and the two paths used to change amplifier state. The same concepts appear in:
 
-The THR5 rotary control was examined as a continuous quadrature or gray-code input polled by Task 4. In the stock firmware, a signed modulo-5 helper at `0x020171CC` and associated wrap logic constrain the visible model range.
+- [`thr_live.py`](../tools/thr_live.py), for interactive MIDI commands
+- [`thr_map.py`](../tools/thr_map.py), for decoding settings blocks
+- [Chapter 11](11_TOOLING_AND_AUTOMATION_GUIDE.md), for command examples
+- [Chapter 12](12_WEB_MIDI_STUDIO_ARCHITECTURE.md), for browser-side protocol handling
 
-An experimental in-place patch changed the arithmetic to support ten positions, with the following bank layout:
+### 3. Follow a signal from the model selector into the DSP
 
-- Positions 0–4: Clean, Crunch, Lead, Brit Hi, and Modern
-- Positions 5–9: Acoustic Sim, Condenser, Dynamic, Tube, and Nylon
+Read [Chapter 4](04_DSP_COPROCESSOR_AND_AUDIO_PIPELINE.md) for the DSP blocks and the `FUN_020184E6` dispatcher. Then follow the two specialized branches:
 
-The associated wrap points examined were `0x0202C474` and `0x0202C4E2`. These experiments may be of interest to readers studying how physical controls, model tables, and firmware bounds interact.
+- [Chapter 5](05_TONE_STACK_AND_FREQUENCY_RESPONSE.md) for tone shaping and frequency response
+- [Chapter 6](06_EFFECTS_ENGINE_AND_RACK_COMPRESSOR.md) for compressor, modulation, delay, reverb, and gate behavior
 
-### 4. DSP Coprocessor Dispatch
+The [custom patching guide](../guides/CREATING_CUSTOM_PATCHES.md) shows how these observations become standalone firmware experiments.
 
-Forney identified a high-level `dsp_command(union dsp_command *cmd)` entry point at `0x203D988` in the THR10C build. Further tracing in THR5 firmware followed the command flow toward a lower-level dispatcher identified as `FUN_020184E6(coproc, block, param, val)`.
+### 4. Study the physical controls and persistent state
 
-The observed block organization was:
+[Chapter 7](07_ROTARY_ENCODER_AND_UI_EXPANSION.md) connects the rotary selector, display, LEDs, and potentiometer tracking. [Chapter 8](08_EEPROM_MAP_AND_HARDWARE_RECOVERY.md) covers the separate persistent state stored in EEPROM.
 
-- Block 0: Preamp and model DSP algorithm loading
-- Block 1: Master tone curves, chassis EQ, and speaker voicing
-- Block 2: Speaker cabinet emulation
-- Block 3: Modulation effects
-- Block 4: Delay and reverb
-- Block 5: Compressor dynamics
-- Block 6: Noise gate dynamics
+For software-only experiments, use the [live MIDI monitor](11_TOOLING_AND_AUTOMATION_GUIDE.md#3-real-time-midi-monitor--control-thr_livepy). For hardware recovery, read both [Chapter 8](08_EEPROM_MAP_AND_HARDWARE_RECOVERY.md) and the [disaster recovery manual](../guides/DISASTER_RECOVERY.md).
 
-This provides another route for investigating the relationship between high-level SysEx commands, firmware routines, and the coprocessor's audio blocks.
+### 5. Validate before flashing
 
-### 5. Compressor and Dynamics Experiments
+[Chapter 9](09_SAFETY_GATES_AND_CPU_EMULATION.md) explains the four checks used before producing a flash container. The operational sequence is in the [pre-flight verification guide](../guides/VERIFY_AND_FLASH.md):
 
-The THR5 firmware examination included Compressor Type 1, described in the THR5A material as a 24-bit studio rack compressor. A conditional check near `0x0201A292` was tested, and a `NOP` patch (`46C0`) allowed the related execution path to be reached.
+1. Extract and preserve the factory image.
+2. Apply a focused patch with [`patch_template.py`](../tools/patch_template.py).
+3. Validate the generated MIDI container.
+4. Flash only after the checks pass.
 
-A 37-row dynamics curve from `thr5a_stock.bin` was also examined and placed at `0x0209D668`, with a connection to output ID `0x97`. These experiments may help researchers compare the dynamics paths available in electric and acoustic-oriented firmware images.
+## Discovery details by topic
 
-### 6. Tone-Stack Processing and Low-Frequency Response
+### Hardware compatibility
 
-Forney's cabinet-bypass example is a useful reference point for studying the THR signal path. Additional analysis examined a per-model tone-curve processor near `0x0209EA40` after observing a pronounced low-frequency response around 100 Hz in the THR5 Clean model when used with full-range speakers or headphones.
+The compatibility experiments concern shared silicon, memory layout, peripherals, and software-controlled device identity. Read [Chapter 1](01_HARDWARE_AND_SILICON.md), then compare the firmware organization in [Chapter 2](02_FIRMWARE_AND_MEMORY_MAP.md).
 
-The experimental firmware loaded THR5A Clean and acoustic tone-stack tables from `0x0209E100` for selected models. The resulting response was evaluated as a way to study model-specific bass, middle, and treble shaping.
+**Explore next:** [extract a factory image](../guides/EXTRACTING_FIRMWARE.md) and use the [firmware container tools](11_TOOLING_AND_AUTOMATION_GUIDE.md#2-firmware-container-utility-thr_toolpy).
 
-### 7. EEPROM Layout and Recovery Research
+### SysEx settings and model access
 
-The repository's firmware-flashing guidance provides important context for considering recovery procedures. Separate analysis examined the onboard Renesas `R1EX25002` SPI EEPROM (`IC11`) and routines near `0x0201B40C` (read) and `0x0201B5BC` (write).
+The settings-block investigation focuses on the difference between the validated parameter path and the larger state-loading path. The byte layout, checksum, and non-volatile preference path are documented in [Chapter 3](03_LIVE_SYSEX_AND_DUAL_DOOR_PROTOCOL.md).
 
-The following locations were identified for further testing:
+**Explore next:** decode a settings block with [`thr_map.py`](../tools/thr_map.py), then inspect the corresponding message handling in [`thr-protocol.js`](../web-studio/thr-protocol.js).
 
-- `0x00`: Startup boot model index
-- `0x01`: Wide Stereo state
-- `0x02`: Hardware update mode or boot-state flag
-- `0x03`: Simulated tube-glow lamp state
-- `0x04`–`0x08`: User preset selectors
-- `0x09`: Master speaker-voicing curve
-- `0xFF`: Factory calibration sentinel
+### DSP and audio behavior
 
-A recovery procedure was also documented for devices that no longer initialize USB MIDI: an external SPI programmer can be connected to the relevant EEPROM pins, and writing `0x01` to offset `0x02` may select secondary-bootloader Update Mode on the next startup. This procedure should be treated as hardware work requiring appropriate safety precautions and independent verification.
+The DSP work is easiest to follow in order: [dispatcher and block directory](04_DSP_COPROCESSOR_AND_AUDIO_PIPELINE.md), [tone stack](05_TONE_STACK_AND_FREQUENCY_RESPONSE.md), then [effects and compressor](06_EFFECTS_ENGINE_AND_RACK_COMPRESSOR.md).
 
-### 8. Potentiometer Cache Invalidation
+**Explore next:** use the [parameter map](../tools/thr_params.json) to connect named controls to the live protocol.
 
-The THR firmware maintains cached analog control values to avoid abrupt changes when recalling presets. During model-selector experiments, the cache behavior was examined through `FUN_0201E83C`.
+### Rotary selector and front-panel UI
 
-Calling this routine after a model change caused the firmware to resample the physical controls, which helped keep the knobs responsive when moving between model banks. This is a useful detail for anyone studying preset recall and control-state synchronization.
+The ten-position rotary experiment is documented together with the display segment, LED isolation, and knob-cache behavior in [Chapter 7](07_ROTARY_ENCODER_AND_UI_EXPANSION.md). This keeps the physical input, model selection, and user feedback in one place.
 
-### 9. Display and LED Control
+**Explore next:** [Example A in the patching guide](../guides/CREATING_CUSTOM_PATCHES.md#example-a-customizing-rotary-selector-behavior--limits), then the model-selection logic in [`patch_template.py`](../tools/patch_template.py).
 
-Forney's use of tuner LEDs demonstrates how the front-panel indicators can provide compact status feedback. Additional work examined the 7-segment display routine `FUN_0201E1F0`, including independent control of the `#` segment:
+### EEPROM and recovery
 
-- `FUN_0201E1F0(0, 1)` illuminates `#`
-- `FUN_0201E1F0(0, 0)` blanks `#`
+The EEPROM map and update-mode sentinel are in [Chapter 8](08_EEPROM_MAP_AND_HARDWARE_RECOVERY.md). The hands-on wiring, backup, and reflash procedure is separated into the [disaster recovery manual](../guides/DISASTER_RECOVERY.md) so the research notes and operational instructions remain easy to distinguish.
 
-An experimental interface used this segment to distinguish electric and acoustic model banks.
+**Explore next:** review the [recovery prerequisites](../guides/DISASTER_RECOVERY.md#4-required-hardware-tools) before connecting an external programmer.
 
-The THR5/THR5A LED mapping was also documented as follows:
+### Safety and reproducibility
 
-- Model LEDs: 0–4
-- Tuner LEDs: 5 (`TUNE_LEFT`), 6 (`TUNE_CENTER`), and 7 (`TUNE_RIGHT`)
+The validation work is collected in [Chapter 9](09_SAFETY_GATES_AND_CPU_EMULATION.md), while the repeatable workflow is split across the [patching guide](../guides/CREATING_CUSTOM_PATCHES.md) and [pre-flight guide](../guides/VERIFY_AND_FLASH.md).
 
-The shared LED routine at `0x0201E6F4` was left unchanged after testing showed that remapping it could affect tuner indicators. Model LED handling was instead kept in the model-switch and preset-recall paths near `0x0202BF28` and `0x0201E530`.
+**Explore next:** [Chapter 11](11_TOOLING_AND_AUTOMATION_GUIDE.md) for the exact utilities and command paths used by the workflow.
 
-### 10. Pre-Flash Validation and Emulation
+### Browser interface
 
-Forney's documented checksum and file-verification practices are a useful baseline for responsible flashing. The later experimental workflow added several automated checks before producing a MIDI flash file:
+The browser work is described in [Chapter 12](12_WEB_MIDI_STUDIO_ARCHITECTURE.md). The implementation is in [`web-studio/`](../web-studio/), with protocol handling in [`thr-protocol.js`](../web-studio/thr-protocol.js), application behavior in [`app.js`](../web-studio/app.js), and setup notes in the [web-studio README](../web-studio/README.md).
 
-1. **CPU emulation:** Unicorn-based tests exercise boot, dial, knob-sweep, tuner, and preset-recall paths.
-2. **Opcode boundaries:** Modified regions are disassembled and checked for instruction alignment and expected control-flow behavior.
-3. **MIDI container validation:** SysEx message counts, payload blocks, checksums, and the pre-erase delay are verified.
-4. **Binary difference audit:** Modified bytes are accounted for against the factory image.
+**Explore next:** compare the browser message flow with [`thr_live.py`](../tools/thr_live.py) to see the same device behavior from two interfaces.
 
-These checks are intended to complement, not replace, careful backups, hardware-specific testing, and the recovery knowledge described above.
+## Relationship to Michael Forney's work
 
-### 11. Browser-Based MIDI Interface
+Forney's repository is a useful reference for the THR10C firmware-dumping, patching, and MIDI-flashing workflow. The links above point to investigations on other THR hardware and to later questions about DSP routing, persistent settings, UI behavior, validation, and browser tooling.
 
-Forney's C, Lua, and ALSA-oriented command-line tools remain valuable for understanding the data path and for scripted workflows. A separate `thr-web/` application explored a browser-based interface using Web MIDI, with features including:
+The most direct points of connection are:
 
-- Two-way parameter synchronization
-- Visual knob and slider state
-- Preset backup and restore
-- Cabinet selection
-- Access to selected extended settings such as Wide Stereo, tube-lamp state, and speaker voicing
-- GitHub Pages deployment at [`https://coreymlawrence.github.io/thr/`](https://coreymlawrence.github.io/thr/)
+- [Firmware extraction and flashing](../guides/EXTRACTING_FIRMWARE.md) and [pre-flight verification](../guides/VERIFY_AND_FLASH.md)
+- [Live SysEx framing and checksums](03_LIVE_SYSEX_AND_DUAL_DOOR_PROTOCOL.md)
+- [Firmware symbols and Thumb execution](02_FIRMWARE_AND_MEMORY_MAP.md)
+- [Custom patch creation](../guides/CREATING_CUSTOM_PATCHES.md)
 
-This offers a different interaction model for readers who want to experiment with the same MIDI-controlled device from a modern browser.
-
-## Closing Note
-
-Michael Forney's work established a clear and practical path into Yamaha THR firmware research. The investigations collected here follow that path across different THR hardware, firmware builds, and research questions. Readers familiar with `michaelforney/thr10` may find the most useful connections in the shared SysEx format, firmware patching model, DSP command flow, front-panel controls, and the care required when modifying and reflashing embedded devices.
-
-The findings in this document are experimental and hardware-specific. Firmware images, addresses, EEPROM behavior, and recovery procedures should be independently checked against the exact device and build under study.
+The findings remain experimental and build-specific. Check the exact hardware, firmware image, addresses, and recovery procedure before applying any result to a different device.
