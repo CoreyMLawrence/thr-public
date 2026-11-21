@@ -9,9 +9,11 @@ Features:
   full bus speed with ZERO latency.
 - Dedicated Tone Knob Macro Handler: Translates simultaneous Bass/Mid/Treble
   updates into an accurate, unified physical Tone knob percentage.
-- Full Effect & Spatial Engine Telemetry:
-  * Modulation: Chorus, Flanger, Tremolo, Phaser with individual parameter depth.
-  * Delay / Reverb: Delay, Spring Reverb, Hall Reverb, and Dly/Rev dual modes.
+- Full Effect & Spatial Engine Telemetry with Blended Effect Support:
+  * Effect Blend: Handles physical knob blending between Compressor and Chorus
+    (or Flanger/Tremolo/Phaser), displaying 'CMP:30% CHO:45%' when both are engaged.
+  * Spatial Blend: Handles physical knob blending between Delay and Reverb
+    (Spring/Hall), displaying 'DLY:40% SPR:65%' or 'DLY:40% HAL:50%' when both are engaged.
 - Seamless recovery from connects, disconnects, power cycles, and mode transitions.
 """
 
@@ -74,11 +76,25 @@ MOD_NAMES = {
     3: "Phaser",
 }
 
+MOD_ABBR = {
+    0: "CHO",
+    1: "FLG",
+    2: "TRM",
+    3: "PHS",
+}
+
 REVERB_NAMES = {
     0: "Hall",
     1: "Room",
     2: "Plate",
     3: "Spring",
+}
+
+REVERB_ABBR = {
+    0: "HAL",
+    1: "ROM",
+    2: "PLT",
+    3: "SPR",
 }
 
 DUMP_TAG = [0x44, 0x54, 0x41]  # "DTA"
@@ -136,12 +152,21 @@ class DisplayState:
         self.mid = 50
         self.treble = 50
 
+        # Effects & Spatials
         self.comp_on = False
-        self.mod_type = 0
+        self.comp_level = 50
+        self.comp_type = 1  # 0 Stomp, 1 Rack
+
         self.mod_on = False
+        self.mod_type = 0  # 0 Chorus, 1 Flanger, 2 Tremolo, 3 Phaser
+        self.mod_level = 50
+
         self.delay_on = False
+        self.delay_level = 50
+
         self.reverb_on = False
-        self.reverb_type = 0
+        self.reverb_type = 0  # 0 Hall, 1 Room, 2 Plate, 3 Spring
+        self.reverb_level = 50
 
         self.knob_line = None
         self.last_knob_time = 0
@@ -156,19 +181,56 @@ class DisplayState:
             self.override_l1 = None
             self.override_l2 = None
 
-    def get_dly_rev_label(self, val=None):
-        lvl = f": {val}%" if val is not None else ""
-        if not self.delay_on and not self.reverb_on:
-            return "Dly/Rev: OFF"
+    def get_effect_display(self, val=None):
+        """Formats the EFFECT knob display, supporting dual Comp+Chorus blend."""
+        if self.comp_on and self.mod_on:
+            m_abbr = MOD_ABBR.get(self.mod_type, "CHO")
+            # Try full percentage format
+            t1 = f"CMP:{self.comp_level}% {m_abbr}:{self.mod_level}%"
+            if len(t1) <= 16:
+                return t1
+            # Condensed if 100% causes overflow
+            t2 = f"CMP:{self.comp_level} {m_abbr}:{self.mod_level}"
+            if len(t2) <= 16:
+                return t2
+            return f"CMP+{m_abbr}: {val if val is not None else self.mod_level}%"
+
+        if self.comp_on and not self.mod_on:
+            lvl = f": {val if val is not None else self.comp_level}%"
+            return f"Comp{lvl}"
+
+        if self.mod_on and not self.comp_on:
+            m_name = MOD_NAMES.get(self.mod_type, "Chorus")
+            lvl = f": {val if val is not None else self.mod_level}%"
+            return f"{m_name}{lvl}"
+
+        return "Effect: OFF"
+
+    def get_dly_rev_display(self, val=None):
+        """Formats the DLY/REV knob display, supporting dual Delay+Reverb blend."""
         if self.delay_on and self.reverb_on:
-            return f"Dly/Rev{lvl}"
+            r_abbr = REVERB_ABBR.get(self.reverb_type, "HAL")
+            # Try full percentage format
+            t1 = f"DLY:{self.delay_level}% {r_abbr}:{self.reverb_level}%"
+            if len(t1) <= 16:
+                return t1
+            # Condensed if 100% causes overflow
+            t2 = f"DLY:{self.delay_level} {r_abbr}:{self.reverb_level}"
+            if len(t2) <= 16:
+                return t2
+            return f"DLY+{r_abbr}: {val if val is not None else self.delay_level}%"
+
         if self.delay_on and not self.reverb_on:
+            lvl = f": {val if val is not None else self.delay_level}%"
             return f"Delay{lvl}"
+
         if self.reverb_on and not self.delay_on:
-            rname = REVERB_NAMES.get(self.reverb_type, "Hall")
-            tag = f"{rname} Rev{lvl}"
-            return tag if len(tag) <= 16 else f"{rname}{lvl}"
-        return "Dly/Rev"
+            r_name = REVERB_NAMES.get(self.reverb_type, "Hall")
+            lvl = f": {val if val is not None else self.reverb_level}%"
+            tag = f"{r_name} Rev{lvl}"
+            return tag if len(tag) <= 16 else f"{r_name}{lvl}"
+
+        return "Dly/Rev: OFF"
 
     def get_lines(self):
         with self.lock:
@@ -207,7 +269,6 @@ def lookup_tone_position(amp_idx, b, m, t):
     if not curve:
         curve = TONE_CURVES.get(0)
     if not curve:
-        # Fallback approximation
         return int(max(0, min(100, (t * 0.6) + (m * 0.2) + ((100 - b) * 0.2))))
 
     best_k = min(
@@ -275,6 +336,7 @@ def run_detector():
     log("=" * 60)
     log("Yamaha THR Always-On Detector Daemon Initializing")
     log("Non-blocking Asynchronous Display Engine Active")
+    log("Dual Blended Effect Telemetry Engine Enabled")
     log("=" * 60)
 
     # Start the decoupled LCD rendering worker
@@ -439,14 +501,22 @@ def run_detector():
                     state.mid = block[PAYLOAD_AT + 132]
                     state.treble = block[PAYLOAD_AT + 133]
 
-                    # Effects initial state
-                    if len(block) > PAYLOAD_AT + 208:
+                    # Effects & Spatials initial state from settings block
+                    # Note: On THR, 0 = Active/ON, 127 = Bypassed/OFF
+                    if len(block) > PAYLOAD_AT + 209:
+                        state.comp_type = block[PAYLOAD_AT + 144]
                         state.comp_on = bool(block[PAYLOAD_AT + 159] == 0)
+
                         state.mod_type = block[PAYLOAD_AT + 160]
                         state.mod_on = bool(block[PAYLOAD_AT + 175] == 0)
+                        state.mod_level = block[PAYLOAD_AT + 161]
+
                         state.delay_on = bool(block[PAYLOAD_AT + 191] == 0)
-                        state.reverb_type = block[PAYLOAD_AT + 208]
+                        state.delay_level = block[PAYLOAD_AT + 192]
+
                         state.reverb_on = bool(block[PAYLOAD_AT + 207] == 0)
+                        state.reverb_type = block[PAYLOAD_AT + 208]
+                        state.reverb_level = block[PAYLOAD_AT + 209]
 
                     log(f"    Initial Patch: {state.amp_name} | Cabinet: {state.cab_name}")
 
@@ -527,7 +597,6 @@ def run_detector():
                         elif addr == 0x05:
                             state.treble = val
 
-                        # Compute unified physical Tone knob percentage
                         k = lookup_tone_position(state.amp_idx, state.bass, state.mid, state.treble)
                         if k is not None:
                             state.knob_line = f"Tone: {k}%"
@@ -540,77 +609,80 @@ def run_detector():
                     # 6. Compressor (0x10, 0x11, 0x12, 0x1F)
                     elif addr == 0x1F:
                         state.comp_on = bool(val)
-                        state.knob_line = "Comp: ON (Rack)" if val else "Comp: OFF"
+                        state.knob_line = state.get_effect_display()
                         state.last_knob_time = now
-                        log(f"[KNOB] Compressor Switch -> {'ON' if val else 'OFF'}")
+                        log(f"[KNOB] Comp Switch -> {'ON' if val else 'OFF'} ({state.knob_line})")
 
                     elif addr == 0x10:
+                        state.comp_type = val
                         state.knob_line = f"Comp: {'Rack' if val else 'Stomp'}"
                         state.last_knob_time = now
                         log(f"[KNOB] Comp Type -> {'Rack' if val else 'Stomp'}")
 
                     elif addr in (0x11, 0x12):
                         state.comp_on = True
-                        state.knob_line = f"Comp: {val}%"
+                        state.comp_level = val
+                        state.knob_line = state.get_effect_display(val)
                         state.last_knob_time = now
-                        log(f"[KNOB] Comp Param -> {val}%")
+                        log(f"[KNOB] Comp Level -> {val}% ({state.knob_line})")
 
                     # 7. EFFECT / Modulation (0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x2F)
                     elif addr == 0x20:
                         state.mod_type = val
                         state.mod_on = True
                         name = MOD_NAMES.get(val, "Chorus")
-                        state.knob_line = f"{name}: Active"
+                        state.knob_line = state.get_effect_display()
                         state.last_knob_time = now
-                        log(f"[KNOB] Effect Type -> {name}")
+                        log(f"[KNOB] Effect Type -> {name} ({state.knob_line})")
 
                     elif addr == 0x2F:
                         state.mod_on = bool(val)
-                        name = MOD_NAMES.get(state.mod_type, "Chorus")
-                        state.knob_line = f"{name}: ON" if val else "Effect: OFF"
+                        state.knob_line = state.get_effect_display()
                         state.last_knob_time = now
-                        log(f"[KNOB] Effect Switch -> {'ON' if val else 'OFF'}")
+                        log(f"[KNOB] Effect Switch -> {'ON' if val else 'OFF'} ({state.knob_line})")
 
                     elif addr in (0x21, 0x22, 0x23, 0x24, 0x25):
                         state.mod_on = True
-                        name = MOD_NAMES.get(state.mod_type, "Chorus")
-                        state.knob_line = f"{name}: {val}%"
+                        state.mod_level = val
+                        state.knob_line = state.get_effect_display(val)
                         state.last_knob_time = now
-                        log(f"[KNOB] {name} Level -> {val}%")
+                        log(f"[KNOB] Effect Level -> {val}% ({state.knob_line})")
 
                     # 8. Delay (0x31, 0x33, 0x34, 0x36, 0x38, 0x3F)
                     elif addr == 0x3F:
                         state.delay_on = bool(val)
-                        state.knob_line = state.get_dly_rev_label()
+                        state.knob_line = state.get_dly_rev_display()
                         state.last_knob_time = now
-                        log(f"[KNOB] Delay Switch -> {'ON' if val else 'OFF'}")
+                        log(f"[KNOB] Delay Switch -> {'ON' if val else 'OFF'} ({state.knob_line})")
 
                     elif addr in (0x31, 0x33, 0x38):
                         state.delay_on = True
-                        state.knob_line = state.get_dly_rev_label(val)
+                        state.delay_level = val
+                        state.knob_line = state.get_dly_rev_display(val)
                         state.last_knob_time = now
-                        log(f"[KNOB] Delay Level -> {val}%")
+                        log(f"[KNOB] Delay Level -> {val}% ({state.knob_line})")
 
                     # 9. Reverb (0x40, 0x41, 0x42, 0x43, 0x4F)
                     elif addr == 0x40:
                         state.reverb_type = val
                         state.reverb_on = True
                         rname = REVERB_NAMES.get(val, "Hall")
-                        state.knob_line = state.get_dly_rev_label()
+                        state.knob_line = state.get_dly_rev_display()
                         state.last_knob_time = now
-                        log(f"[KNOB] Reverb Type -> {rname}")
+                        log(f"[KNOB] Reverb Type -> {rname} ({state.knob_line})")
 
                     elif addr == 0x4F:
                         state.reverb_on = bool(val)
-                        state.knob_line = state.get_dly_rev_label()
+                        state.knob_line = state.get_dly_rev_display()
                         state.last_knob_time = now
-                        log(f"[KNOB] Reverb Switch -> {'ON' if val else 'OFF'}")
+                        log(f"[KNOB] Reverb Switch -> {'ON' if val else 'OFF'} ({state.knob_line})")
 
                     elif addr in (0x41, 0x42):
                         state.reverb_on = True
-                        state.knob_line = state.get_dly_rev_label(val)
+                        state.reverb_level = val
+                        state.knob_line = state.get_dly_rev_display(val)
                         state.last_knob_time = now
-                        log(f"[KNOB] Reverb Amount -> {val}%")
+                        log(f"[KNOB] Reverb Amount -> {val}% ({state.knob_line})")
 
         except Exception as err:
             log(f"[-] Port I/O event: {err}")
