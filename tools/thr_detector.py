@@ -4,17 +4,16 @@ thr_detector.py - Always-On Yamaha THR Hardware Connection & Mode Detector Daemo
 ================================================================================
 Monitors USB MIDI connections continuously to detect Yamaha THR amplifiers:
 - Identifies whether the amp is booted in UPDATE MODE ('U') or NORMAL PLAY MODE.
-- Drives the physical 16x2 I2C LCD screen with real-time status, active presets,
-  and live knob telemetry.
+- Confirms connection state and drives the physical 16x2 I2C LCD screen with
+  real-time status, active presets, and live knob telemetry.
 - Seamlessly handles connects, disconnects, power cycles, and mode transitions.
-- Designed to run continuously as a systemd daemon (thr-detector.service).
+- Runs continuously as a systemd daemon (thr-detector.service).
 """
 
 import os
 import sys
 import time
 import signal
-import subprocess
 
 # Ensure local module directory is in path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -41,14 +40,6 @@ CUSTOM_AMPS = {
     5: "Bass",
     6: "Aco",
     7: "Flat",
-}
-
-STOCK_THR5_AMPS = {
-    0: "Clean",
-    1: "Crunch",
-    2: "Lead",
-    3: "Brit Hi",
-    4: "Modern",
 }
 
 CABINETS = [
@@ -118,7 +109,7 @@ def find_thr_midi_ports():
         return None, None
 
 
-def request_settings_block(port_out, port_in, model_id=0x31, timeout=1.0):
+def request_settings_block(port_out, port_in, model_id=0x31, timeout=0.8):
     """Requests current settings block from amp to inspect active preset."""
     if not port_out or not port_in:
         return None
@@ -186,7 +177,7 @@ def run_detector():
         # Case B: THR MIDI Port Detected! Probe connection mode.
         # ---------------------------------------------------------
         log(f"[+] THR hardware port discovered: {port_in_name}")
-        thr_lcd.set_text("THR Connected!", "Checking Mode...")
+        thr_lcd.set_text("THR Detected!", "Checking Mode...")
 
         port_in = None
         port_out = None
@@ -232,6 +223,10 @@ def run_detector():
                 last_state = "UPDATE"
                 log("[!] >>> YAMAHA THR DETECTED IN UPDATE MODE ('U') <<<")
                 log("    DTAb bootloader active. Amp is ready to flash or dump.")
+
+                # Confirmed Connection Notification
+                thr_lcd.set_text("THR Connected!", "Mode: Update [U]")
+                time.sleep(1.5)
                 thr_lcd.set_text("THR in [U] Mode!", "Ready to Flash")
 
                 u_timer = 0
@@ -269,21 +264,35 @@ def run_detector():
             # Mode 2: NORMAL PLAY MODE
             # -----------------------------------------------------
             model_name = MODELS_MAP.get(detected_model_id, "THR5")
+            mid_val = detected_model_id if detected_model_id is not None else 0
             last_state = "NORMAL"
             log(f"[+] >>> YAMAHA THR DETECTED IN NORMAL PLAY MODE <<<")
-            log(f"    Hardware Identity: {model_name} (0x{detected_model_id:02X if detected_model_id else 0:02X})")
+            log(f"    Hardware Identity: {model_name} (0x{mid_val:02X})")
+
+            # Confirmed Connection Notification on Screen
+            thr_lcd.set_text(f"{model_name} Connected!", "Mode: Normal Play")
+            time.sleep(1.5)
 
             current_amp_idx = 0
             current_cab_idx = 4  # Default 1x12 Deluxe for custom firmware
             current_amp_name = CUSTOM_AMPS.get(current_amp_idx, "Clean")
             current_cab_name = CABINETS[current_cab_idx]
 
+            # In case output port was not ready initially, re-probe
+            if not port_out:
+                _, p_out_retry = find_thr_midi_ports()
+                if p_out_retry:
+                    try:
+                        port_out = mido.open_output(p_out_retry)
+                    except Exception:
+                        pass
+
             # Query settings block for initial state if output port is available
             if port_out:
-                cand_ids = [0x31, detected_model_id or 0x30, 0x34]
+                cand_ids = [0x31, mid_val or 0x30, 0x34]
                 block = None
                 for cid in cand_ids:
-                    block = request_settings_block(port_out, port_in, model_id=cid, timeout=0.8)
+                    block = request_settings_block(port_out, port_in, model_id=cid, timeout=0.6)
                     if block:
                         break
 
@@ -291,7 +300,11 @@ def run_detector():
                     current_amp_idx = block[AMP_AT]
                     current_cab_idx = block[CAB_AT]
                     current_amp_name = CUSTOM_AMPS.get(current_amp_idx, f"Model {current_amp_idx}")
-                    current_cab_name = CABINETS[current_cab_idx] if current_cab_idx < len(CABINETS) else f"Cab {current_cab_idx}"
+                    current_cab_name = (
+                        CABINETS[current_cab_idx]
+                        if current_cab_idx < len(CABINETS)
+                        else f"Cab {current_cab_idx}"
+                    )
                     log(f"    Initial Patch: {current_amp_name} | Cabinet: {current_cab_name}")
 
             # Display on 16x2 LCD
@@ -350,7 +363,9 @@ def run_detector():
                     elif addr == 0x06:
                         # Cabinet selection
                         current_cab_idx = val
-                        current_cab_name = CABINETS[val] if val < len(CABINETS) else f"Cab {val}"
+                        current_cab_name = (
+                            CABINETS[val] if val < len(CABINETS) else f"Cab {val}"
+                        )
                         log(f"[KNOB] Cabinet -> {current_cab_name}")
                         thr_lcd.set_text(f"{model_name}: {current_amp_name}", f"Cab: {current_cab_name}")
 
@@ -419,6 +434,8 @@ def run_detector():
 
         # Disconnected state reset
         if running:
+            thr_lcd.set_text("THR Disconnected", "Waiting for Amp")
+            time.sleep(1.0)
             thr_lcd.set_text("THR Companion", "Waiting for Amp")
             last_state = "WAITING"
             time.sleep(1.0)
