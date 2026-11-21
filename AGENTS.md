@@ -96,3 +96,30 @@ python tools/thr_live.py listen
 ## 5. Web Studio Status Notice
 
 The browser application in `web-studio/` is an **unfinished, experimental beta proof-of-concept**. It was built to demonstrate reverse-engineered SysEx control and settings-block model injection. Do not present it as a finished commercial product.
+
+---
+
+## 6. Physical 16x2 LCD Screen Directives for AI Agents
+
+This hardware host is equipped with an attached **16x2 I2C LCD screen** (at `0x3F`) running directly via `http://localhost/api` (and `tools/thr_lcd.py`).
+
+**MANDATORY DIRECTIVE FOR ALL AGENTS:**
+Whenever an AI assistant is working on THR tasks, running firmware builds, executing safety gates, dumping firmware, flashing the amplifier, or running live monitors:
+1. **Always Be Creative with the Screen:** Do not leave the physical screen blank or static. Use it actively as an engaging, informative status and telemetry dashboard for Corey.
+2. **Visual Progress & Loading Bars:**
+   - When flashing, dumping, or running multi-stage safety audits, render a live progress bar on Line 2 with percentage and status on Line 1 using `thr_lcd.py`:
+     ```python
+     import thr_lcd
+     thr_lcd.show_progress(current, total, title="Flashing")
+     ```
+   - Example display:
+     ```text
+     Flashing:  65%
+     [=======>    ]
+     ```
+3. **Status Indicators & Amp State:**
+   - Display active model names and bank states (`[#] Clean 1x12`, `Acoustic Tube`, etc.) via `thr_lcd.show_amp_model()`.
+   - Alert the user to critical states (e.g., `Waiting for U`, `Verify Passed!`, `Dump Complete!`) with `thr_lcd.show_status()`.
+   - Use `thr_lcd.flash_alert()` to visually pulse the backlight on key milestones or pre-flash alerts.
+4. **Tool Integration:**
+   - All newly authored automation, flasher, watcher, and bench scripts must import `thr_lcd` and update the physical display in real-time.
