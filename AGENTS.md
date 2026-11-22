@@ -101,25 +101,117 @@ The browser application in `web-studio/` is an **unfinished, experimental beta p
 
 ## 6. Physical 16x2 LCD Screen Directives for AI Agents
 
-This hardware host is equipped with an attached **16x2 I2C LCD screen** (at `0x3F`) running directly via `http://localhost/api` (and `tools/thr_lcd.py`).
+This hardware host is equipped with an attached **16x2 I2C LCD character screen** (at address `0x3F`) running directly via `http://localhost/api` (and Python helper `thr_lcd.py`).
 
-**MANDATORY DIRECTIVE FOR ALL AGENTS:**
-Whenever an AI assistant is working on THR tasks, running firmware builds, executing safety gates, dumping firmware, flashing the amplifier, or running live monitors:
-1. **Always Be Creative with the Screen:** Do not leave the physical screen blank or static. Use it actively as an engaging, informative status and telemetry dashboard for Corey.
+> [!IMPORTANT]
+> **CORE USER DIRECTIVE FOR ALL AI AGENTS:**
+> **The screen MUST be used as a verbose communication method with the user as much as possible.**
+> Never leave the physical screen blank, stale, or static. Treat it as your real-time hardware status and telemetry display for Corey across every task.
+
+### Mandatory Rules for Screen Usage:
+1. **Verbose Real-Time Action Feedback:**
+   Whenever an agent runs builds, analyses, tests, firmware dumps, flash cycles, or parameter monitors, actively push progress updates to the screen:
+   - **Code Analysis / Inspections:** `thr_lcd.set_text("Analyzing Tone", "Scanning M0..M4")`
+   - **Firmware Compilation:** `thr_lcd.set_text("Building v53...", "Patching Tables")`
+   - **Safety Gate Verification:** `thr_lcd.set_text("Verifying Gates", "Gate 1: Emulate")`
+   - **Waiting for Hardware / User Action:** `thr_lcd.set_text("Waiting for [U]", "Hold TAP & Power")`
+   - **Pre-Flash Alerts:** `thr_lcd.flash_alert(times=2); thr_lcd.set_text("Pre-Flash OK", "Ready to Stream")`
+   - **Task Completion:** `thr_lcd.set_text("Task Complete!", "All Checks Pass")`
+
 2. **Visual Progress & Loading Bars:**
-   - When flashing, dumping, or running multi-stage safety audits, render a live progress bar on Line 2 with percentage and status on Line 1 using `thr_lcd.py`:
+   - **Never output raw silent delays.** Every long-running operation (flash erase, block streaming, ROM dumping, multi-suite emulation) must render a dynamic progress bar on Line 2 with percentage and elapsed time on Line 1.
+   - Example 16x2 display layout:
+     ```text
+     Flash:  65%  24s
+     [========>     ]
+     ```
+   - Use dedicated helpers in `thr_lcd.py`:
      ```python
      import thr_lcd
-     thr_lcd.show_progress(current, total, title="Flashing")
+     thr_lcd.show_flash_erase(elapsed_sec, total_sec=16.0)
+     thr_lcd.show_flash_streaming(current_block, total_blocks=2341, elapsed=elapsed_sec)
+     thr_lcd.show_flash_done()
      ```
-   - Example display:
-     ```text
-     Flashing:  65%
-     [=======>    ]
-     ```
-3. **Status Indicators & Amp State:**
-   - Display active model names and bank states (`[#] Clean 1x12`, `Acoustic Tube`, etc.) via `thr_lcd.show_amp_model()`.
-   - Alert the user to critical states (e.g., `Waiting for U`, `Verify Passed!`, `Dump Complete!`) with `thr_lcd.show_status()`.
-   - Use `thr_lcd.flash_alert()` to visually pulse the backlight on key milestones or pre-flash alerts.
-4. **Tool Integration:**
-   - All newly authored automation, flasher, watcher, and bench scripts must import `thr_lcd` and update the physical display in real-time.
+
+3. **Tool Integration:**
+   - All newly authored automation scripts, flashers, watchers, and bench tools must import `thr_lcd` and update the physical screen dynamically.
+
+---
+
+## 7. Flashing Protocol, Progress Bars & Fast-Flash Timing Rules
+
+Flashing physical Yamaha THR hardware requires strict adherence to container structure, timing safety, and live telemetry:
+
+### 1. Step-by-Step Flashing Protocol with Progress Bars:
+Every firmware flasher (e.g. `thr_tool.py flash` or stage flasher `flash_*.py`) must render a structured, 3-phase progress display on **both the terminal AND the physical 16x2 LCD**:
+- **Step 1/3: NOR Flash Sector Erase (16.0s)**
+  - Send `DTA1ERASE` message.
+  - Display animated countdown and progress bar on terminal and LCD (`thr_lcd.show_flash_erase`).
+  - Terminal: `[Step 1/3] Erase NOR Flash: [====================] 100% | 16.0s / 16.0s [COMPLETE]`
+  - LCD: `Line 1: Erase:  12s  25%` | `Line 2: [===>        ]`
+- **Step 2/3: Streaming Payload Blocks (2,341 blocks)**
+  - Stream `DTA1MAIN` payload blocks at defined block interval.
+  - Update progress bar, transfer rate (blocks/sec), elapsed time, and ETA every 10–15 blocks on terminal and LCD (`thr_lcd.show_flash_streaming`).
+  - Terminal: `[Step 2/3] Stream Payload:  [============>       ]  65% | 1521/2341 (22.8s, 31.4 blk/s, ETA: 12.2s)`
+  - LCD: `Line 1: Flash:  65%  23s` | `Line 2: [=========>   ]`
+- **Step 3/3: Checksum Terminator & Completion**
+  - Send `DTA1CSUM` terminator.
+  - LCD: `thr_lcd.show_flash_done()` (flashes backlight twice, displays `Flash Complete!` / `Please Reboot`).
+  - Terminal: Prompt user to observe `E - n - d` looping on the THR 7-segment display and power cycle.
+
+### 2. Fast-Flash Timing Rules:
+- **`ERASE_GAP_MS` MUST ALWAYS BE 16,000 ms (16 seconds).** Never reduce, shorten, or strip this delay. The onboard NOR flash requires 16 seconds to safely erase Section 2 sectors. Sending data during erase corrupts flash.
+- **`BLOCK_GAP_MS` CAN BE SET AS LOW AS 15 ms (Fast Flash).** Factory Yamaha tools use 50 ms per block (~133s total send time). We empirically verified that 15 ms per block streams cleanly with zero block dropouts, reducing total transmission time to **~51 seconds** (over 2.5× faster).
+- `thr_tool.py pack` supports `--gap-ms <ms>` (default 50, fast 15).
+
+---
+
+## 8. Tone Curve Architecture & Acoustic Voicing Calibration
+
+The Yamaha THR tone stack uses model-specific lookup tables rather than generic software filters:
+
+1. **Table Structure & Sizing:**
+   - Each model has a dedicated 606-byte table ($101 \times 6$ bytes: 101 positions 0%..100%).
+   - Each entry contains three big-endian 16-bit integers:
+     - `+0`: **Bass** (`CC 0x83` in DSP)
+     - `+2`: **Middle** (`CC 0x84` in DSP)
+     - `+4`: **Treble** (`CC 0x85` in DSP)
+   - Jump table at `0x0204B680` reads model index `r0` (0..4), loads tone table pointer from literal pool (`0x0204B834`..`0x0204B844`), and calls `FUN_0201D1D4` for Bass, Mid, and Treble.
+
+2. **Acoustic vs. Electric Tone Behavior:**
+   - **Authentic THR-5A Acoustic Curves (Condenser `0x0205087A`, EG Clean `0x0205061C`):**
+     - **0% (Counter-Clockwise):** Low 60, Mid 35, High 30 (Warm body resonance, gentle high roll-off).
+     - **50% (Noon):** Low 50, Mid 50, High 50 (Flat reference response).
+     - **100% (Fully Clockwise):** Low 55, Mid 60, High 100 (Full acoustic air/sparkle, tight controlled bass).
+   - **Electric Curves (Stock Crunch `0x0204F092`, Clean `0x0204EE34`):**
+     - Electric Crunch intentionally boosts Lows up to **89** to simulate speaker cabinet thump.
+     - Electric Clean boosts Lows up to **100**.
+     - **Crucial Rule:** Never leave electric tone tables on acoustic models (e.g. Model 1 ACO), or bass will run away into boomy feedback when the Tone knob is cranked.
+
+---
+
+## 9. Live Parameter Telemetry, Inverted Switches & Blend Zones
+
+When building monitors, daemons (`thr_detector.py`), or companion UIs:
+
+1. **Inverted Bypass Switches:**
+   - On the Yamaha THR SysEx protocol, bypass switches are **inverted**:
+     - `0` = **Active / Engaged / ON**
+     - `127` = **Bypassed / Disengaged / OFF**
+   - Applies to Compressor bypass (`0x10`), Modulation bypass (`0x20`), Delay bypass (`0x30`), and Reverb bypass (`0x40`).
+
+2. **Knob Blending Zones:**
+   - **Knob 5 (Effect):** Blends Compressor (0..50%) and Chorus (50..100%). Around 40..60%, both effects can be active simultaneously (`CMP+CHO`).
+   - **Knob 3 (Dly/Rev):** Blends Delay (0..50%) and Reverb (50..100%). Around 40..60%, both effects can be active simultaneously (`DLY+REV`).
+   - Telemetry must check both bypass state AND knob zone so inactive effects are properly erased from the display.
+
+3. **Parameter Addresses:**
+   - **Reverb Level:** Listens on `0x4B` for Hall/Plate (THR5A) and `0x41` for Spring (THR5).
+   - **Delay Level:** Strictly on `0x38`.
+   - **Chorus Mix:** Strictly on `0x23`.
+   - **Rack Compressor Threshold:** Raw values sweep from 500 (0% min comp) down to 350 (100% max comp). Normalize to 0..100%.
+
+4. **Tone Draining & LCD Formatting:**
+   - Coalesce rapid Tone updates by draining `port_in.iter_pending()` in a single pass.
+   - Display Tone parameters in Low $\to$ Mid $\to$ High order: `L:XX M:YY H:ZZ` (16 characters, zero flicker).
+

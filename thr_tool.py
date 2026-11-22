@@ -603,28 +603,94 @@ def cmd_flash(args):
         die("aborted, nothing sent")
 
     payloads, gaps = read_smf(args.file)
+    total = len(payloads)
+    total_blocks = total - 2  # Subtract erase (0) and checksum (last)
     sent, start = 0, time.monotonic()
+
+    try:
+        import thr_lcd
+    except Exception:
+        thr_lcd = None
+
     try:
         with mido.open_output(port) as out:
-            for i, payload in enumerate(payloads):
+            # Step 1: Send Erase command and track 16s erase progress
+            print("\n" + "=" * 70)
+            print("[Step 1/3] Sending ERASE command to NOR flash...")
+            out.send(mido.Message("sysex", data=list(payloads[0])))
+            sent += 1
+
+            erase_wait = gaps[1] / 1000.0 if len(gaps) > 1 else 16.0
+            erase_start = time.monotonic()
+            while True:
+                e_elapsed = time.monotonic() - erase_start
+                if e_elapsed >= erase_wait:
+                    break
+                pct = min(100.0, (e_elapsed / erase_wait) * 100.0)
+                bar = thr_lcd.render_terminal_bar(e_elapsed, erase_wait, width=24) if thr_lcd else f"[{int(pct):>3}%]"
+                rem = max(0.0, erase_wait - e_elapsed)
+                print(f"  Erase NOR Flash: {bar} | {e_elapsed:4.1f}s / {erase_wait:4.1f}s ({rem:4.1f}s rem)", end="\r", flush=True)
+                if thr_lcd:
+                    thr_lcd.show_flash_erase(e_elapsed, erase_wait)
+                time.sleep(0.15)
+
+            full_bar = "[========================] 100.0%"
+            print(f"  Erase NOR Flash: {full_bar} | {erase_wait:4.1f}s / {erase_wait:4.1f}s [ERASE COMPLETE]")
+            if thr_lcd:
+                thr_lcd.show_flash_erase(erase_wait, erase_wait)
+
+            # Step 2: Stream firmware payload blocks
+            print("\n[Step 2/3] Streaming firmware blocks to amplifier...")
+            block_start = time.monotonic()
+            for i in range(1, total - 1):
                 wait = gaps[i] / 1000.0
-                if wait > 1:
-                    print("\n  waiting %.0fs for the erase, do not touch the amp" % wait)
-                if wait:
+                if wait > 0:
                     time.sleep(wait)
-                out.send(mido.Message("sysex", data=list(payload)))
+
+                out.send(mido.Message("sysex", data=list(payloads[i])))
                 sent += 1
-                if sent % 50 == 0:
-                    print("  %d/%d  %.0fs" % (sent, len(payloads),
-                                              time.monotonic() - start),
-                          end="\r", flush=True)
+
+                blk_idx = i  # 1..total_blocks
+                b_elapsed = time.monotonic() - block_start
+                if blk_idx % 15 == 0 or blk_idx == total_blocks:
+                    pct = (blk_idx / total_blocks) * 100.0
+                    rate = blk_idx / b_elapsed if b_elapsed > 0 else 0
+                    eta = (total_blocks - blk_idx) / rate if rate > 0 else 0
+                    bar = thr_lcd.render_terminal_bar(blk_idx, total_blocks, width=24) if thr_lcd else f"[{int(pct):>3}%]"
+                    print(f"  Stream Payload:  {bar} | {blk_idx}/{total_blocks} ({b_elapsed:4.1f}s, {rate:4.1f} blk/s, ETA: {eta:4.1f}s)", end="\r", flush=True)
+                    if thr_lcd:
+                        thr_lcd.show_flash_streaming(blk_idx, total_blocks, elapsed=b_elapsed, rate=rate)
+
+            print(f"\n  Stream Payload:  {full_bar} | {total_blocks}/{total_blocks} [STREAM COMPLETE]")
+
+            # Step 3: Checksum terminator
+            print("\n[Step 3/3] Sending checksum terminator & verifying...")
+            if thr_lcd:
+                thr_lcd.set_text("Finalizing...", "Verifying CSUM")
+            csum_wait = gaps[total - 1] / 1000.0 if gaps[total - 1] > 0 else 0.015
+            time.sleep(csum_wait)
+            out.send(mido.Message("sysex", data=list(payloads[total - 1])))
+            sent += 1
+            print(f"  Checksum Verify: {full_bar} [CHECKSUM OK]")
+
+            elapsed_total = time.monotonic() - start
+            print("\n" + "=" * 70)
+            print(f"[COMPLETE] Flash transmission finished cleanly in {elapsed_total:.1f}s!")
+            print("Watch for 'E - n - d' looping on the amp display, then power cycle.")
+            print("=" * 70)
+            if thr_lcd:
+                thr_lcd.show_flash_done()
+
     except KeyboardInterrupt:
+        if thr_lcd:
+            thr_lcd.show_flash_error("Flash Interrupted")
         die("INTERRUPTED after %d/%d messages. Do NOT power cycle.\n"
             "  Re-enter update mode and send the whole file again."
             % (sent, len(payloads)))
-
-    print("\nsent %d/%d messages in %.0fs" % (sent, len(payloads),
-                                              time.monotonic() - start))
+    except Exception as exc:
+        if thr_lcd:
+            thr_lcd.show_flash_error("Flash Error")
+        raise
     if sent != len(payloads):
         die("SHORT SEND. Do not power cycle. Re-enter update mode and retry.")
     print("\n  Watch for E - n - d looping on the display, then power cycle.")
