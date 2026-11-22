@@ -5,7 +5,7 @@
 - **Build Date:** November 21, 2026
 - **Base Firmware:** Corey's Dumped Custom Firmware (`dumped_custom_amp.bin` / `thr5_custom_restored.bin`)
 - **Binary Output:** `thr5_hybrid_v53.bin` (1,048,576 bytes)
-- **Container Output:** `thr5_hybrid_v53.mid` (2,343 SysEx messages, 2,341 payload blocks, 16,000 ms pre-erase delay)
+- **Container Output:** `thr5_hybrid_v53.mid` (2,343 SysEx messages, 2,341 payload blocks, 16,000 ms pre-erase delay, 15 ms block gap for fast ~51s flashing)
 - **Reference Acoustic Base:** Authentic Yamaha THR-5A Factory Firmware (`thr5a_stock.bin`)
 
 ---

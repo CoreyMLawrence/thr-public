@@ -115,8 +115,8 @@ def main():
     print(f"Binary Size:      {len(fw):,} bytes")
     print(f"SHA-256:          {out_sha}")
 
-    # 7. Package into MIDI update container (.mid)
-    print("\nPackaging .mid container with thr_tool.py pack...")
+    # 7. Package into MIDI update container (.mid) with 15ms fast flash block gap (16s erase gap preserved)
+    print("\nPackaging .mid container with thr_tool.py pack (--gap-ms 15)...")
     pack_cmd = [
         sys.executable,
         os.path.join(REPO_ROOT, "thr_tool.py"),
@@ -125,6 +125,8 @@ def main():
         OUT_BIN,
         "--out",
         OUT_MID,
+        "--gap-ms",
+        "15",
     ]
     res = subprocess.run(pack_cmd, capture_output=True, text=True, cwd=REPO_ROOT)
     print(res.stdout)
