@@ -344,13 +344,55 @@ When starting the next conversation:
 - **Batched Tone Draining:** Drain `port_in.iter_pending()` to coalesce Bass/Mid/Treble updates into a single LCD pass (`L:XX M:YY H:ZZ`) with zero flicker.
 
 ### 5. Hardware Connection Modes: Tuner Mode vs. Update Mode ('U')
-- **The Problem:** When the user engages Tuner Mode on the amp (holding `TAP: TIME / HOLD: TUNER`), Yamaha's `DTAm` main firmware suspends periodic heartbeat SysEx (`F0 43 7D 60 44 54 41...`) to prioritize pitch calculation. Previous detector versions naively assumed "no heartbeats = Update Mode", mistakenly displaying `THR in [U] Mode! Ready to Flash`.
-- **The Solution (Two-Way Active Probing):**
-  1. In **Update Mode ('U')**, the secondary bootloader (`DTAb`) is running. It answers `DTA1ROMR` (`F0 43 7D 50 44 54 41 31 52 4F 4D 52 02 F7`) with `DTA1MAIN` data blocks.
+- **The Problem:** When the user engages Tuner Mode on the amp (holding `TAP: TIME / HOLD: TUNER`), Yamaha's `DTAm` main firmware suspends periodic heartbeat SysEx (`F0 43 7D 60 44 54 41...`) to prioritize pitch calculation. Previous detector versions naively assumed "no heartbeats = Update Mode", mistakenly displaying `THR in [U] Mode! Ready to Flash`. Conversely, when in Update Mode ('U'), sending `DTA1ROMR` returns `DTA1ERASE` first as a preamble before `DTA1MAIN`; previous versions checked only for `b"DTA1MAIN"` and therefore misclassified Update Mode as Tuner Mode!
+- **The Solution (Two-Way Active Probing & Preamble Detection):**
+  1. In **Update Mode ('U')**, the secondary bootloader (`DTAb`) is running. It answers `DTA1ROMR` (`F0 43 7D 50 44 54 41 31 52 4F 4D 52 02 F7`) with `DTA1ERASE` followed by `DTA1MAIN` data blocks. Checking for `b"DTA1ERASE"` or `b"DTA1MAIN"` or `b"DTA1"` confirms **Update Mode ('U')**.
   2. In **Tuner Mode**, the main application firmware (`DTAm`) is running. It produces **zero replies** to `DTA1ROMR`.
-  3. When heartbeats cease while the port is connected, `thr_detector.py` sends a lightweight 250ms `DTA1ROMR` probe:
-     - If `DTA1MAIN` is returned: Confirms **Update Mode ('U')** $\to$ LCD shows `THR in [U] Mode!` / `Ready to Flash`.
-     - If no reply is returned: Confirms **Tuner Mode** $\to$ LCD shows `THR5: Tuner Mode` / `Muted / Tuning..`.
-  4. Tapping `TAP/TUNER` exits tuner mode: heartbeats immediately resume, and `thr_detector.py` seamlessly returns to Normal Play Mode without dropping ports or re-initializing.
+  3. When heartbeats cease while the port is connected, `thr_detector.py` sends a lightweight `DTA1ROMR` probe:
+     - If `DTA1ERASE` / `DTA1MAIN` is returned: Confirms **Update Mode ('U')** $\to$ LCD shows `THR in [U] Mode!` / `Ready to Flash`.
+     - If no reply is returned: Confirms **Tuner Mode** $\to$ LCD shows `THR5: Tuner Mode` / `Muted / Tuning..` (alternating with `Tap to Exit`).
+  4. Tapping `TAP/TUNER` or touching any knob exits tuner mode: heartbeats or parameter change messages (`CMD`) resume, and `thr_detector.py` immediately clears the override and resumes Normal Play Mode.
+
+---
+
+## 6. Breakthrough Discovery: Clean Signal Path Architecture & Stage v54 Solution
+
+### The Harsh Highs Quirk on Clean:
+When playing on Model 0 Clean, users observed a piercing, razor-sharp digital fizz in the high frequencies (5 kHz – 20 kHz) that sounded abrasive unless heavily rolled off.
+
+### Root Cause Analysis in Firmware Disassembly:
+1. **THR DSP Block Architecture:**
+   - **DSP Block 4:** Electric Preamp Simulation
+   - **DSP Block 5:** Acoustic Coprocessor Simulation
+   - **DSP Block 2:** Speaker Cabinet Simulation (1x12 Deluxe, 2x12 British, 4x12, etc.)
+2. In `dumped_custom_amp.bin` at `0x0201A104` (`FUN_0201A104`, Clean setup):
+   - Local stack variable `local_38` (`[sp]`) holds the target DSP Block passed to `FUN_0203FA58`.
+   - At `0x0201A15C`:
+     ```arm
+     movs r1, #5
+     mov  r3, sp
+     strh r1, [r2]   ; cab index = 5 (1x12 Deluxe)
+     strh r1, [r3]   ; WRITES 5 TO [sp] (DSP Block Parameter) INSTEAD OF 2!
+     ```
+   - **The Bug:** `[sp]` was written as 5. `FUN_0203FA58` attempted to load the cabinet simulation into **Block 5**, completely bypassing **DSP Block 2**!
+   - As a result, Model 0 Clean was running with **ZERO speaker cabinet emulation**. Unfiltered guitar preamp distortion and fizz was sent directly to the power amp with no 1x12 speaker cone low-pass filtering.
+
+### The Stage v54 Solution:
+At file offset `0x00A15C`, Stage v54 applies the 10-byte patch:
+`21 02 46 6b 80 19 21 05 80 11`
+Disassembles to:
+```arm
+movs r1, #2        ; DSP Block 2 (Cabinet Block)
+mov  r3, sp
+strh r1, [r3]      ; [sp] = 2 (Enables Cabinet Simulation in Block 2!)
+movs r1, #5        ; Cab 5 (1x12 Deluxe)
+strh r1, [r2]      ; *r2 = 5 (Cabinet Index 5)
+```
+- **Result:** DSP Block 2 is now actively loaded with the 1x12 Deluxe cabinet impulse response, filtering high frequencies above 4.5 kHz and delivering rich, warm, authentic Fender Deluxe Reverb tone.
+- **Combined with Authentic Tone Curves:**
+  - Model 0 (Clean): Authentic THR-5A EG Clean curve (`0x0205061C` -> `0x0204EE34`).
+  - Model 1 (ACO): Authentic THR-5A Acoustic Condenser curve (`0x0205087A` -> `0x0204F092`).
+  - Models 2..4: Preserved electric curves.
+
 
 

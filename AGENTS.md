@@ -237,18 +237,68 @@ Software and daemons (`thr_detector.py`) must never assume that "silence on MIDI
 When a THR MIDI port is present but heartbeats are absent:
 1. Send `DTA1ROMR` bootloader inquiry (`[0x43, 0x7D, 0x50, 0x44, 0x54, 0x41, 0x31, 0x52, 0x4F, 0x4D, 0x52, 0x02]`).
 2. Listen for up to 300 ms:
-   - If a SysEx packet containing `b"DTA1MAIN"` arrives: The amp is running `DTAb`. Classify as **UPDATE MODE ('U')**.
+   - If a SysEx packet containing `b"DTA1ERASE"`, `b"DTA1MAIN"`, or `b"DTA1"` arrives: The amp is running `DTAb`. Classify as **UPDATE MODE ('U')**. Note: `DTA1ERASE` is the preamble echo that the bootloader sends *before* streaming `DTA1MAIN` data blocks. Checking only for `b"DTA1MAIN"` will cause bootloader probes to miss the response and falsely classify Update Mode as Tuner Mode!
    - If NO packet arrives: The amp is running `DTAm` with tuner engaged. Classify as **TUNER MODE**.
 3. **In-Flight Normal Play Monitoring:** If heartbeats pause for > 3.5s while the USB connection remains intact:
-   - Probe `DTA1ROMR`: if no answer, immediately transition display to `THR5: Tuner Mode` / `Muted / Tuning..`.
-   - When the user taps `TAP/TUNER` to exit tuner, heartbeats resume. The daemon clears the display override immediately without dropping ports or re-initializing.
+   - Probe `DTA1ROMR`: if `b"DTA1"` / `b"DTA1ERASE"` / `b"DTA1MAIN"` is received, immediately classify as **UPDATE MODE ('U')**.
+   - If no answer, transition display to `THR5: Tuner Mode` / `Muted / Tuning..`.
+   - When the user taps `TAP/TUNER` to exit tuner or touches any knob, heartbeats and parameter change messages resume. The daemon clears the display override immediately without dropping ports or re-initializing.
 
-### 4. Mandatory 16x2 LCD UI Presentation:
+### 4. Mandatory 16x2 LCD UI Presentation & Flashing Steps:
+- **Always use the physical screen as a verbose primary communication method:**
+  - The user must always see exact amp status, model, EQ, effects, and active mode on the LCD.
+  - During flashing, provide multi-phase progress bars via `thr_lcd`:
+    - **Phase 1 (16s Erase):** `show_flash_erase(elapsed, total=16.0)` with seconds countdown.
+    - **Phase 2 (Payload Streaming):** `show_flash_streaming(current_block, total_blocks=2341)` with percentage and block counter.
+    - **Phase 3 (Completion):** `show_flash_done()` flashing the LCD backlight twice and prompting `Power Cycle THR`.
 - **When Tuner Mode is active:**
   - `Line 1:` `THR5: Tuner Mode`
   - `Line 2:` `Muted / Tuning..` (alternating with `Tap to Exit     `)
 - **When Update Mode ('U') is active:**
   - `Line 1:` `THR in [U] Mode!`
   - `Line 2:` `Ready to Flash` (alternating with `Firmware Lab`)
+
+---
+
+## CRITICAL DISCOVERY: Clean Signal Path Architecture & Harsh Highs Root Cause
+
+### 1. DSP Block Allocation on Yamaha THR:
+- **DSP Block 4:** Electric Preamp Simulation
+- **DSP Block 5:** Acoustic Coprocessor Simulation
+- **DSP Block 2:** Speaker Cabinet Simulation (1x12 Deluxe, 2x12 British, 4x12, etc.)
+
+### 2. The Missing Cabinet Simulation Bug:
+- In `FUN_0201A104` (Clean setup function in RAM at `0x0201A104` / file offset `0x00A104`):
+  - Stack variable `local_38` (`[sp]`) holds the target DSP Block passed to `FUN_0203FA58`.
+  - In `dumped_custom_amp.bin` at `0x0201A15C`:
+    ```arm
+    movs r1, #5
+    mov  r3, sp
+    strh r1, [r2]   ; cab index = 5 (1x12 Deluxe)
+    strh r1, [r3]   ; WRITES 5 TO [sp] (DSP Block) INSTEAD OF 2!
+    ```
+  - **Root Cause:** Because `[sp]` was 5, `FUN_0203FA58` attempted to load the cabinet simulation into **Block 5**, completely bypassing **DSP Block 2**!
+  - As a result, Model 0 Clean had **ZERO speaker cabinet emulation**. Unfiltered guitar preamp distortion and high-frequency digital fizz (5 kHz – 20 kHz) was blasting directly through the speakers.
+
+### 3. The Signal Path Patch:
+At file offset `0x00A15C`, replace the 10 bytes with:
+```
+21 02 46 6b 80 19 21 05 80 11
+```
+Disassembles to:
+```arm
+movs r1, #2        ; DSP Block 2 (Cabinet Block)
+mov  r3, sp
+strh r1, [r3]      ; [sp] = 2 (Enables Cabinet Simulation in Block 2!)
+movs r1, #5        ; Cab 5 (1x12 Deluxe)
+strh r1, [r2]      ; *r2 = 5 (Cabinet Index 5)
+```
+This properly routes the electric signal through the 1x12 Deluxe cabinet impulse response, rolling off harsh frequencies above 4.5 kHz and restoring authentic warm tone.
+
+---
+
+## Flashing Timing Constraints
+1. **Accelerated Block Timing:** The inter-message delay in the SMF update container (`.mid`) can safely be set as low as **15 ms** (down from factory 50 ms) using `thr_tool.py pack --gap-ms 15`. This accelerates flash transmission from ~2.5 minutes down to ~51 seconds.
+2. **Strict Erase Delay:** **NEVER reduce the 16,000 ms NOR flash erase delay (`ERASE_GAP_MS`)**. The SPI NOR flash requires 16 full seconds to complete sector erasure before receiving blocks.
 
 
