@@ -343,3 +343,14 @@ When starting the next conversation:
 - **Effect Blending:** Knob 5 blends Compressor + Chorus; Knob 3 blends Delay + Reverb. Detectors must check both bypass state and knob zone to correctly display dual effects (`CMP+CHO`, `DLY+REV`) and erase inactive ones.
 - **Batched Tone Draining:** Drain `port_in.iter_pending()` to coalesce Bass/Mid/Treble updates into a single LCD pass (`L:XX M:YY H:ZZ`) with zero flicker.
 
+### 5. Hardware Connection Modes: Tuner Mode vs. Update Mode ('U')
+- **The Problem:** When the user engages Tuner Mode on the amp (holding `TAP: TIME / HOLD: TUNER`), Yamaha's `DTAm` main firmware suspends periodic heartbeat SysEx (`F0 43 7D 60 44 54 41...`) to prioritize pitch calculation. Previous detector versions naively assumed "no heartbeats = Update Mode", mistakenly displaying `THR in [U] Mode! Ready to Flash`.
+- **The Solution (Two-Way Active Probing):**
+  1. In **Update Mode ('U')**, the secondary bootloader (`DTAb`) is running. It answers `DTA1ROMR` (`F0 43 7D 50 44 54 41 31 52 4F 4D 52 02 F7`) with `DTA1MAIN` data blocks.
+  2. In **Tuner Mode**, the main application firmware (`DTAm`) is running. It produces **zero replies** to `DTA1ROMR`.
+  3. When heartbeats cease while the port is connected, `thr_detector.py` sends a lightweight 250ms `DTA1ROMR` probe:
+     - If `DTA1MAIN` is returned: Confirms **Update Mode ('U')** $\to$ LCD shows `THR in [U] Mode!` / `Ready to Flash`.
+     - If no reply is returned: Confirms **Tuner Mode** $\to$ LCD shows `THR5: Tuner Mode` / `Muted / Tuning..`.
+  4. Tapping `TAP/TUNER` exits tuner mode: heartbeats immediately resume, and `thr_detector.py` seamlessly returns to Normal Play Mode without dropping ports or re-initializing.
+
+

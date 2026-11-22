@@ -215,3 +215,40 @@ When building monitors, daemons (`thr_detector.py`), or companion UIs:
    - Coalesce rapid Tone updates by draining `port_in.iter_pending()` in a single pass.
    - Display Tone parameters in Low $\to$ Mid $\to$ High order: `L:XX M:YY H:ZZ` (16 characters, zero flicker).
 
+---
+
+## 10. Hardware Connection Modes: Distinguishing Tuner Mode vs. Update Mode ('U')
+
+Software and daemons (`thr_detector.py`) must never assume that "silence on MIDI means Update Mode". On the Yamaha THR platform, three distinct connection states exist:
+
+### 1. The Three Operating States:
+| State | Active Firmware | 7-Seg Display | Periodic Heartbeat? | Responds to `DTA1ROMR`? | Audio State | How to Exit |
+|---|---|---|---|---|---|---|
+| **Normal Play** | `DTAm` (Main App) | Preset # or Model | **Yes** (`43 7D 60 44 54 41...`) | No | Active | Hold TAP/TUNER or Power Off |
+| **Tuner Mode** | `DTAm` (Main App) | Note (`A`,`b`,`C`...) / `--` | **No** (Suspended for pitch detection) | **No** (DTAb not running) | **Muted** | Tap `TAP/TUNER` (resumes heartbeats) |
+| **Update Mode ('U')** | `DTAb` (Bootloader) | Solid `U` | **No** (Never sends heartbeats) | **Yes** (Streams `DTA1MAIN`) | Uninitialized | Power Cycle or Flash Firmware |
+
+### 2. Physical Button Operation:
+- **`TAP: TIME` and `TUNER` are the exact same physical button.**
+- **During Normal Operation:** Holding the button for ~1.5s engages the chromatic guitar tuner. The amp mutes audio and suspends heartbeat broadcasts to give 100% priority to pitch detection. Tapping it again un-mutes audio and immediately restores heartbeats.
+- **At Power-On:** Holding the button while turning power ON (and pressing 5 times rapidly) triggers a reboot into the secondary bootloader (`DTAb`), displaying `U`.
+
+### 3. Active Two-Way Probing Algorithm:
+When a THR MIDI port is present but heartbeats are absent:
+1. Send `DTA1ROMR` bootloader inquiry (`[0x43, 0x7D, 0x50, 0x44, 0x54, 0x41, 0x31, 0x52, 0x4F, 0x4D, 0x52, 0x02]`).
+2. Listen for up to 300 ms:
+   - If a SysEx packet containing `b"DTA1MAIN"` arrives: The amp is running `DTAb`. Classify as **UPDATE MODE ('U')**.
+   - If NO packet arrives: The amp is running `DTAm` with tuner engaged. Classify as **TUNER MODE**.
+3. **In-Flight Normal Play Monitoring:** If heartbeats pause for > 3.5s while the USB connection remains intact:
+   - Probe `DTA1ROMR`: if no answer, immediately transition display to `THR5: Tuner Mode` / `Muted / Tuning..`.
+   - When the user taps `TAP/TUNER` to exit tuner, heartbeats resume. The daemon clears the display override immediately without dropping ports or re-initializing.
+
+### 4. Mandatory 16x2 LCD UI Presentation:
+- **When Tuner Mode is active:**
+  - `Line 1:` `THR5: Tuner Mode`
+  - `Line 2:` `Muted / Tuning..` (alternating with `Tap to Exit     `)
+- **When Update Mode ('U') is active:**
+  - `Line 1:` `THR in [U] Mode!`
+  - `Line 2:` `Ready to Flash` (alternating with `Firmware Lab`)
+
+
